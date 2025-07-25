@@ -3,6 +3,9 @@ import PackageDescription
 
 let package = Package(
     name: "interaction",
+    platforms: [
+        .macOS(.v10_15), .linux
+    ],
     products: [
         .executable(name: "interaction-test", targets: ["interaction"])
     ],
@@ -17,4 +20,4 @@ let package = Package(
             resources: []
         )
     ]
-)
+) 
