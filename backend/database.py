@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship, backref
 import datetime
 
@@ -6,11 +6,20 @@ Base = declarative_base()
 engine = create_engine("sqlite:///./data.db", connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine)
 
+class Topic(Base):
+    __tablename__ = "topics"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, unique=True, nullable=False)
+    __table_args__ = (UniqueConstraint('name', name='uq_topic_name'),)
+    def __repr__(self):
+        return f"<Topic(id={self.id}, name={self.name})>"
+
 class Thought(Base):
     __tablename__ = "thoughts"
     id = Column(Integer, primary_key=True, autoincrement=True)
     content = Column(String)
     parent = Column(Integer, ForeignKey('thoughts.id'), nullable=True)
+    topic_name = Column(String, ForeignKey('topics.name'), nullable=True)
     children = relationship(
         "Thought",
         backref=backref('parent_obj', remote_side=[id]),
@@ -18,16 +27,17 @@ class Thought(Base):
     )
     create_time = Column(DateTime, default=datetime.datetime.utcnow)
     def __repr__(self):
-        return f"<Thought(id={self.id}, content={self.content[:20]}, parent={self.parent}, create_time={self.create_time})>"
+        return f"<Thought(id={self.id}, content={self.content[:20]}, parent={self.parent}, topic_name={self.topic_name}, create_time={self.create_time})>"
 
 class Solution(Base):
     __tablename__ = "solutions"
     id = Column(Integer, primary_key=True, autoincrement=True)
     content = Column(String)
     parent = Column(Integer, ForeignKey('thoughts.id'), nullable=True)  # 关联 thought
+    topic_name = Column(String, ForeignKey('topics.name'), nullable=True)
     create_time = Column(DateTime, default=datetime.datetime.utcnow)
     def __repr__(self):
-        return f"<Solution(id={self.id}, content={self.content[:20]}, parent={self.parent}, create_time={self.create_time})>"
+        return f"<Solution(id={self.id}, content={self.content[:20]}, parent={self.parent}, topic_name={self.topic_name}, create_time={self.create_time})>"
 
 def get_db():
     db = SessionLocal()

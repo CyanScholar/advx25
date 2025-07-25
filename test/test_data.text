@@ -1,20 +1,20 @@
-{"content": "焦虑", "type": "thought", "parent": null}
-{"content": "工作压力", "type": "thought", "parent": 1}
-{"content": "经济压力", "type": "thought", "parent": 1}
-{"content": "人际关系紧张", "type": "thought", "parent": 1}
-{"content": "任务堆积", "type": "thought", "parent": 2}
-{"content": "加班", "type": "thought", "parent": 4}
-{"content": "项目延期", "type": "thought", "parent": 4}
-{"content": "收入减少", "type": "thought", "parent": 3}
-{"content": "房贷压力", "type": "thought", "parent": 3}
-{"content": "沟通障碍", "type": "thought", "parent": 5}
-{"content": "家庭矛盾", "type": "thought", "parent": 5}
-{"content": "冥想练习", "type": "solution", "parent": 4}
-{"content": "运动释放压力", "type": "solution", "parent": 6}
-{"content": "项目管理工具", "type": "solution", "parent": 7}
-{"content": "理财规划", "type": "solution", "parent": 8}
-{"content": "房贷重组", "type": "solution", "parent": 9}
-{"content": "心理咨询", "type": "solution", "parent": 10}
-{"content": "家庭会议", "type": "solution", "parent": 11}
-{"content": "社交训练", "type": "solution", "parent": 5}
-{"content": "时间管理", "type": "solution", "parent": 4}
+{"content": "焦虑", "type": "thought", "parent": null, "topic_name": "焦虑"}
+{"content": "工作压力", "type": "thought", "parent": 1, "topic_name": "焦虑"}
+{"content": "经济压力", "type": "thought", "parent": 1, "topic_name": "焦虑"}
+{"content": "人际关系紧张", "type": "thought", "parent": 1, "topic_name": "焦虑"}
+{"content": "任务堆积", "type": "thought", "parent": 2, "topic_name": "焦虑"}
+{"content": "加班", "type": "thought", "parent": 4, "topic_name": "焦虑"}
+{"content": "项目延期", "type": "thought", "parent": 4, "topic_name": "焦虑"}
+{"content": "收入减少", "type": "thought", "parent": 3, "topic_name": "焦虑"}
+{"content": "房贷压力", "type": "thought", "parent": 3, "topic_name": "焦虑"}
+{"content": "沟通障碍", "type": "thought", "parent": 5, "topic_name": "焦虑"}
+{"content": "家庭矛盾", "type": "thought", "parent": 5, "topic_name": "焦虑"}
+{"content": "冥想练习", "type": "solution", "parent": 4, "topic_name": "焦虑"}
+{"content": "运动释放压力", "type": "solution", "parent": 6, "topic_name": "焦虑"}
+{"content": "项目管理工具", "type": "solution", "parent": 7, "topic_name": "焦虑"}
+{"content": "理财规划", "type": "solution", "parent": 8, "topic_name": "焦虑"}
+{"content": "房贷重组", "type": "solution", "parent": 9, "topic_name": "焦虑"}
+{"content": "心理咨询", "type": "solution", "parent": 10, "topic_name": "焦虑"}
+{"content": "家庭会议", "type": "solution", "parent": 11, "topic_name": "焦虑"}
+{"content": "社交训练", "type": "solution", "parent": 5, "topic_name": "焦虑"}
+{"content": "时间管理", "type": "solution", "parent": 4, "topic_name": "焦虑"}

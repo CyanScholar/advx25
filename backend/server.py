@@ -1,7 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Depends, Body, Form
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from database import get_db, Thought, Solution
+from database import get_db, Thought, Solution, Topic
 from ocr import tencent_ocr_high_precision
 import datetime
 import shutil
@@ -9,9 +9,18 @@ import shutil
 运行命令：
     uvicorn server:app --host 0.0.0.0 --port 9999
 """
-
-#todo： topic字段也要传过来的字段，每张表上都需要这个字段，同时还要topic的表。
 #todo: 使用uv或者requrement.txt或者setup.py管理依赖
+
+def get_or_create_topic(db, topic_name):
+    if not topic_name:
+        return None
+    topic = db.query(Topic).filter(Topic.name == topic_name).first()
+    if not topic:
+        topic = Topic(name=topic_name)
+        db.add(topic)
+        db.commit()
+        db.refresh(topic)
+    return topic
 
 app = FastAPI()
 
@@ -26,10 +35,13 @@ async def upload(file: UploadFile = File(...), db: Session = Depends(get_db)):
 async def ocr_api(
     file: UploadFile = File(...),
     type: str = Form(...),
+    topic_name: str = Form(None),
     db: Session = Depends(get_db)
 ):
     if type not in ("thought", "solution"):
         return JSONResponse(content={"error": "type必须为'thought'或'solution'"}, status_code=400)
+    if topic_name:
+        get_or_create_topic(db, topic_name)
     image_bytes = await file.read()
     try:
         text = tencent_ocr_high_precision(image_bytes)
@@ -37,18 +49,20 @@ async def ocr_api(
             obj = Thought(
                 content=text,
                 parent=None,
+                topic_name=topic_name,
                 create_time=datetime.datetime.utcnow()
             )
         else:
             obj = Solution(
                 content=text,
                 parent=None,
+                topic_name=topic_name,
                 create_time=datetime.datetime.utcnow()
             )
         db.add(obj)
         db.commit()
         db.refresh(obj)
-        return JSONResponse(content={"text": text, "id": obj.id})
+        return JSONResponse(content={"text": text, "id": obj.id, "topic_name": obj.topic_name})
     except Exception as e:
         import traceback; traceback.print_exc()
         return JSONResponse(content={"error": str(e)}, status_code=500)
@@ -59,16 +73,21 @@ async def create_node(
     db: Session = Depends(get_db)
 ):
     node_type = data.get("type", "thought")
+    topic_name = data.get("topic_name")
+    if topic_name:
+        get_or_create_topic(db, topic_name)
     if node_type == "thought":
         obj = Thought(
             content=data.get("content", ""),
             parent=data.get("parent"),
+            topic_name=topic_name,
             create_time=data.get("create_time", datetime.datetime.utcnow())
         )
     elif node_type == "solution":
         obj = Solution(
             content=data.get("content", ""),
             parent=data.get("parent"),
+            topic_name=topic_name,
             create_time=data.get("create_time", datetime.datetime.utcnow())
         )
     else:
@@ -81,6 +100,7 @@ async def create_node(
         "content": obj.content,
         "type": node_type,
         "parent": obj.parent,
+        "topic_name": obj.topic_name,
         "create_time": obj.create_time.isoformat()
     }
 
