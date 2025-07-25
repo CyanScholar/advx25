@@ -20,6 +20,7 @@ class Thought(Base):
     content = Column(String)
     parent = Column(Integer, ForeignKey('thoughts.id'), nullable=True)
     topic_name = Column(String, ForeignKey('topics.name'), nullable=True)
+    connect = Column(String, nullable=True)  # 双向的字段
     children = relationship(
         "Thought",
         backref=backref('parent_obj', remote_side=[id]),
@@ -35,6 +36,7 @@ class Solution(Base):
     content = Column(String)
     parent = Column(Integer, ForeignKey('thoughts.id'), nullable=True)  # 关联 thought
     topic_name = Column(String, ForeignKey('topics.name'), nullable=True)
+    connect = Column(String, nullable=True)  # 双向的字段
     create_time = Column(DateTime, default=datetime.datetime.utcnow)
     def __repr__(self):
         return f"<Solution(id={self.id}, content={self.content[:20]}, parent={self.parent}, topic_name={self.topic_name}, create_time={self.create_time})>"

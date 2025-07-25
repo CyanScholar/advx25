@@ -1,1 +1,0 @@
-. ~/advx/backend/env/bin/activate
