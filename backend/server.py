@@ -118,7 +118,9 @@ def recursive_delete_thought(node, db, deleted_ids):
     db.commit()
     deleted_ids.append(node.id)
     if parent_id is not None:
+        # 遍历parent
         parent = db.query(Thought).filter(Thought.id == parent_id).first()
+        # 如果parent没有子节点，则递归删除parent
         if parent and parent.children.count() == 0:
             recursive_delete_thought(parent, db, deleted_ids)
 
@@ -140,6 +142,8 @@ async def delete_thought(
     recursive_delete_thought(node, db, deleted_ids)
     return {"msg": f"节点及部分祖先已被递归删除", "deleted_ids": deleted_ids}
 
+
+# 归档solution节点，删除parent thought节点与solution节点的联系，可能会触发消除
 @app.post("/archive")
 async def archive_solution(
     data: dict = Body(...),
@@ -159,6 +163,7 @@ async def archive_solution(
     # 归档后递归消除 parent thought
     if parent_id is not None:
         parent = db.query(Thought).filter(Thought.id == parent_id).first()
+        # 只有当父节点存在，且没有任何子节点时，才会触发对父节点的递归删除
         if parent and parent.children.count() == 0 and db.query(Solution).filter(Solution.parent == parent_id).count() == 0:
             recursive_delete_thought(parent, db, deleted_ids)
     return {"msg": f"solution节点已归档", "id": node.id, "deleted_thought_ids": deleted_ids}
