@@ -80,7 +80,8 @@ def add_connect(db: Session, node_id: int, connect_ids: list, node_type="thought
     db.commit()
     # 双向维护
     for cid in connect_ids:
-        other = db.query(Thought).filter(Thought.id == cid).first()
+        # 根据node_type查询对应的表
+        other = db.query(Model).filter(Model.id == cid).first()
         if other:
             other_conn = set(json.loads(other.connect or "[]"))
             other_conn.add(node_id)
@@ -98,9 +99,10 @@ def remove_connect(db: Session, node_id: int, connect_ids: list, node_type="thou
     current -= set(connect_ids)
     node.connect = json.dumps(list(current))
     db.commit()
-    # 双向
+    # 双向维护
     for cid in connect_ids:
-        other = db.query(Thought).filter(Thought.id == cid).first()
+        # 根据node_type查询对应的表
+        other = db.query(Model).filter(Model.id == cid).first()
         if other:
             other_conn = set(json.loads(other.connect or "[]"))
             other_conn.discard(node_id)

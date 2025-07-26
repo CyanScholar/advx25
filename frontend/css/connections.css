@@ -1,0 +1,111 @@
+/* connections.css - 连线样式 */
+
+.connection {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.connection svg {
+    overflow: visible;
+}
+
+.connection path {
+    fill: none;
+    stroke: #FFFFFF;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    
+    /* 多层发光效果 */
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 1))
+            drop-shadow(0 0 4px rgba(255, 255, 255, 0.8))
+            drop-shadow(0 0 8px rgba(255, 255, 255, 0.6))
+            drop-shadow(0 0 12px rgba(176, 196, 255, 0.8))
+            drop-shadow(0 0 16px rgba(176, 196, 255, 0.4));
+    
+    /* 连线绘制动画 */
+    stroke-dasharray: 300;
+    stroke-dashoffset: 300;
+    animation: drawLine 1.5s ease-out forwards;
+}
+
+@keyframes drawLine {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+/* 连接点样式 */
+.connection-point {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: radial-gradient(circle, 
+        rgba(255, 255, 255, 1) 0%, 
+        rgba(176, 196, 255, 0.8) 100%);
+    border-radius: 50%;
+    box-shadow: 
+        0 0 6px rgba(255, 255, 255, 1),
+        0 0 12px rgba(176, 196, 255, 0.8),
+        0 0 18px rgba(176, 196, 255, 0.4);
+    z-index: 7;
+    animation: connectionPulse 2s ease-in-out infinite;
+    pointer-events: all;
+    cursor: pointer;
+}
+
+@keyframes connectionPulse {
+    0%, 100% { 
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% { 
+        transform: scale(1.3);
+        opacity: 0.8;
+    }
+}
+
+/* 悬停效果 */
+.connection:hover .connection path {
+    stroke-width: 4;
+    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 1))
+            drop-shadow(0 0 6px rgba(255, 255, 255, 0.9))
+            drop-shadow(0 0 12px rgba(255, 255, 255, 0.7))
+            drop-shadow(0 0 18px rgba(176, 196, 255, 0.9))
+            drop-shadow(0 0 24px rgba(176, 196, 255, 0.5));
+}
+
+/* 连线删除按钮 */
+.connection-delete {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: rgba(220, 53, 69, 0.9);
+    border: 2px solid #FFFFFF;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFFFFF;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s;
+    z-index: 8;
+    pointer-events: all;
+}
+
+.connection:hover .connection-delete {
+    opacity: 1;
+}
+
+.connection-delete:hover {
+    background: #dc3545;
+    transform: scale(1.1);
+}

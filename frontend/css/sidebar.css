@@ -1,0 +1,242 @@
+/* sidebar.css - 侧边栏样式 */
+
+#sidebar {
+    position: fixed;
+    top: 20px;
+    left: -260px;
+    width: 240px;
+    height: 85vh;
+    background: linear-gradient(135deg, 
+        rgba(255, 255, 255, 0.95) 0%, 
+        rgba(248, 250, 252, 0.95) 100%);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 
+                0 4px 16px rgba(0, 0, 0, 0.1);
+    transition: left 0.3s ease;
+    z-index: 1000;
+    overflow-y: auto;
+}
+
+#sidebar.visible {
+    left: 20px;
+}
+
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    color: #1e293b;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #64748b;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.close-btn:hover {
+    background: rgba(248, 113, 113, 0.1);
+    color: #ef4444;
+}
+
+.sidebar-content {
+    padding: 20px;
+}
+
+.theme-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.theme-item {
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(226, 232, 240, 0.6);
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s;
+}
+
+.theme-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.theme-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
+}
+
+.theme-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.theme-title {
+    flex: 1;
+    font-weight: 600;
+    color: #1e293b;
+    font-size: 14px;
+}
+
+.expand-icon {
+    color: #64748b;
+    transition: transform 0.2s;
+    font-size: 12px;
+}
+
+.theme-item.expanded .expand-icon {
+    transform: rotate(90deg);
+}
+
+.theme-children {
+    margin-left: 20px;
+    border-left: 2px solid rgba(226, 232, 240, 0.6);
+    padding-left: 15px;
+    display: none;
+}
+
+.theme-item.expanded .theme-children {
+    display: block;
+}
+
+.child-item {
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    background: rgba(248, 250, 252, 0.8);
+    border-radius: 8px;
+    border-left: 3px solid transparent;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.child-item:hover {
+    background: rgba(241, 245, 249, 0.9);
+    border-left-color: #3b82f6;
+}
+
+
+
+.child-item.conclusion {
+    border-left-color: #f59e0b;
+}
+
+.child-type {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-right: 8px;
+}
+
+
+
+.child-type.conclusion {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+}
+
+.child-text {
+    color: #374151;
+    font-size: 13px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #64748b;
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.empty-state-text {
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+#show-sidebar-container {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 100;
+}
+
+#show-sidebar-btn {
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+#show-sidebar-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    #sidebar {
+        width: calc(100% - 40px);
+        left: -100%;
+        top: 10px;
+        height: calc(100vh - 20px);
+    }
+    
+    #sidebar.visible {
+        left: 20px;
+    }
+    
+    #show-sidebar-container {
+        top: 10px;
+        left: 10px;
+    }
+    
+    #show-sidebar-btn {
+        width: 45px;
+        height: 45px;
+        font-size: 18px;
+    }
+}

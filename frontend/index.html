@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BubbleMind - 智能气泡白板</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/sidebar.css">
+    <link rel="stylesheet" href="css/ai-assistant.css">
+    <link rel="stylesheet" href="css/toolbar.css">
+    <link rel="stylesheet" href="css/bubbles.css">
+    <link rel="stylesheet" href="css/connections.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="css/context-menu.css">
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="bubble-container"></div>
+    <div id="circle-hint">检测到圆圈！</div>
+    <div id="status"></div>
+    
+    <div id="bubble-context-menu" class="bubble-context-menu">
+        <div class="context-menu-item conclusion">结论</div>
+        <div class="context-menu-item theme">主题</div>
+        <div class="context-menu-item delete">删除</div>
+    </div>
+
+    <!-- 侧边栏 -->
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <h3>思维结构</h3>
+            <button id="close-sidebar" class="close-btn">×</button>
+        </div>
+        <div class="sidebar-content">
+            <div id="theme-list" class="theme-list">
+                <!-- 主题列表将在这里动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 显示侧边栏按钮 -->
+    <div id="show-sidebar-container">
+        <button id="show-sidebar-btn" class="tool-button">📋</button>
+    </div>
+
+    <!-- AI助手组件 -->
+    <div id="ai-assistant">
+        <div id="ai-icon" class="ai-icon">🤖</div>
+        <div id="ai-guidance" class="ai-guidance">
+            <div class="ai-guidance-content">
+                <div class="ai-guidance-text">欢迎使用BubbleMind！画圆圈创建气泡，右键设置类型。</div>
+            </div>
+        </div>
+        <div id="ai-chat" class="ai-chat" style="display: none;">
+            <div class="ai-chat-header">
+                <h3>AI助手</h3>
+            </div>
+            <div class="ai-chat-messages" id="ai-chat-messages">
+                <!-- 聊天记录将在这里动态生成 -->
+            </div>
+            <div class="ai-chat-input">
+                <input type="text" id="ai-input" placeholder="输入您的问题..." />
+                <button id="ai-send-btn">发送</button>
+            </div>
+        </div>
+    </div>
+
+
+    
+    <div id="bottom-toolbar">
+        <button id="pen-tool" class="tool-button active">✏️</button>
+        <button id="eraser-tool" class="tool-button">🧽</button>
+        <button id="pin-mode" class="tool-button">📌</button>
+        <button id="move-canvas" class="tool-button">🖱️</button>
+        <div class="size-slider-container">
+            <input type="range" id="size-slider" min="1" max="20" value="3">
+            <span id="size-value">3px</span>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/canvas.js"></script>
+    <script src="js/circleDetection.js"></script>
+    <script src="js/bubbles.js"></script>
+    <script src="js/connections.js"></script>
+    <script src="js/particles.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/backend.js"></script>
+    <script src="js/events.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

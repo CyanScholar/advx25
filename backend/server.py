@@ -3,9 +3,19 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from database import get_db, Thought, Solution, Topic
 from ocr import tencent_ocr_high_precision
+from agent import ChatAgent, create_chat_agent
 import datetime
 import shutil
 import db_ops
+from fastapi.middleware.cors import CORSMiddleware
+
+
+def get_or_create_agent():
+    """获取或创建全局 agent 实例"""
+    global global_agent, current_model_api
+    if global_agent is None or global_agent.model_name != current_model_api:
+        global_agent = create_chat_agent(model_name=current_model_api)
+    return global_agent
 """
 运行命令：
     uvicorn server:app --host 0.0.0.0 --port 9999
@@ -15,6 +25,183 @@ app = FastAPI()
 
 # 全局自动消除开关
 auto_eliminate = True
+
+# 先清空数据库，避免重复创建
+@app.on_event("startup")
+async def startup_event():
+    """启动时清空数据库"""
+    try:
+        db = next(get_db())
+        db.query(Thought).delete()
+        db.query(Solution).delete()
+        db.query(Topic).delete()
+        db.commit()
+        print("数据库已清空")
+    except Exception as e:
+        print(f"清空数据库失败: {e}")
+
+# 服务关闭时清空数据库和AI对话session
+@app.on_event("shutdown")
+async def shutdown_event():
+    global conversation_history
+    try:
+        db = next(get_db())
+        db.query(Thought).delete()
+        db.query(Solution).delete()
+        db.query(Topic).delete()
+        db.commit()
+        conversation_history.clear()
+        print("[SHUTDOWN] 数据库和AI对话session已清空")
+    except Exception as e:
+        print(f"[SHUTDOWN] 清空失败: {e}")
+
+# ===================== 节点更新接口 =====================
+@app.post("/update")
+async def update_node(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    更新节点类型
+    - id: 节点id
+    - type: 新类型 ("thought", "solution", "topic")
+    - content: 节点内容
+    """
+    try:
+        body = await request.json()
+        node_id = body.get("id")
+        new_type = body.get("type")
+        content = body.get("content")
+        
+        if not node_id or not new_type or not content:
+            return JSONResponse(
+                content={"error": "id、type、content都不能为空"},
+                status_code=400
+            )
+        
+        if new_type not in ["thought", "solution", "topic"]:
+            return JSONResponse(
+                content={"error": "type必须是'thought'、'solution'或'topic'"},
+                status_code=400
+            )
+        
+        # 查找并更新节点
+        if new_type == "solution":
+            # 更新为solution
+            thought = db.query(Thought).filter(Thought.id == node_id).first()
+            if thought:
+                # 创建新的solution
+                solution = Solution(
+                    content=content,
+                    parent=thought.parent,
+                    topic_name=thought.topic_name,
+                    create_time=datetime.datetime.utcnow()
+                )
+                db.add(solution)
+                # 删除原thought
+                db.delete(thought)
+                db.commit()
+                return {"msg": "节点已更新为solution", "id": solution.id}
+        elif new_type == "topic":
+            # 更新为topic
+            thought = db.query(Thought).filter(Thought.id == node_id).first()
+            solution = db.query(Solution).filter(Solution.id == node_id).first()
+            
+            if thought:
+                # 从thought更新为topic
+                topic = Topic(name=content)
+                db.add(topic)
+                db.delete(thought)
+                db.commit()
+                return {"msg": "节点已更新为topic", "id": topic.id}
+            elif solution:
+                # 从solution更新为topic
+                topic = Topic(name=content)
+                db.add(topic)
+                db.delete(solution)
+                db.commit()
+                return {"msg": "节点已更新为topic", "id": topic.id}
+        else:
+            # 更新为thought
+            solution = db.query(Solution).filter(Solution.id == node_id).first()
+            topic = db.query(Topic).filter(Topic.id == node_id).first()
+            
+            if solution:
+                # 从solution更新为thought
+                thought = Thought(
+                    content=content,
+                    parent=solution.parent,
+                    topic_name=solution.topic_name,
+                    create_time=datetime.datetime.utcnow()
+                )
+                db.add(thought)
+                db.delete(solution)
+                db.commit()
+                return {"msg": "节点已更新为thought", "id": thought.id}
+            elif topic:
+                # 从topic更新为thought
+                thought = Thought(
+                    content=content,
+                    parent=None,
+                    topic_name=content,
+                    create_time=datetime.datetime.utcnow()
+                )
+                db.add(thought)
+                db.delete(topic)
+                db.commit()
+                return {"msg": "节点已更新为thought", "id": thought.id}
+        
+        return JSONResponse(
+            content={"error": "节点不存在"},
+            status_code=404
+        )
+        
+    except Exception as e:
+        return JSONResponse(
+            content={"error": f"更新失败: {str(e)}"},
+            status_code=500
+        )
+
+@app.get("/health")
+async def health_check():
+    """健康检查端点"""
+    return {"status": "healthy", "message": "ADVX API 服务正常运行"}
+
+@app.get("/ping")
+async def ping():
+    """ping端点，用于前端健康检查"""
+    return {"status": "ok", "message": "pong"}
+
+# ===================== 数据查询接口 =====================
+@app.get("/thoughts")
+async def get_thoughts(db: Session = Depends(get_db)):
+    """获取所有thoughts"""
+    thoughts = db.query(Thought).all()
+    return [
+        {
+            "id": thought.id,
+            "content": thought.content,
+            "parent": thought.parent,
+            "topic_name": thought.topic_name,
+            "create_time": thought.create_time.isoformat() if thought.create_time else None
+        }
+        for thought in thoughts
+    ]
+
+@app.get("/solutions")
+async def get_solutions(db: Session = Depends(get_db)):
+    """获取所有solutions"""
+    solutions = db.query(Solution).all()
+    return [
+        {
+            "id": solution.id,
+            "content": solution.content,
+            "parent": solution.parent,
+            "topic_name": solution.topic_name,
+            "create_time": solution.create_time.isoformat() if solution.create_time else None
+        }
+        for solution in solutions
+    ]
 
 # ===================== 主题管理 =====================
 def get_or_create_topic(db, topic_name):
@@ -128,23 +315,68 @@ async def create_node(
 
 # ===================== 连接管理 =====================
 @app.post("/connect")
-async def connect_nodes(node_id: int, connect_ids: list, node_type: str, db: Session = Depends(get_db)):
+async def connect_nodes(
+    request: Request,
+    db: Session = Depends(get_db)
+):
     """
     建立节点间的 connect 关系（双向）。
     - node_id: 当前节点id
     - connect_ids: 需连接的节点id列表
     - node_type: "thought" 或 "solution"
     """
-    node = db_ops.add_connect(db, node_id, connect_ids, node_type)
-    return {"msg": "连接已建立", "node": node.id}
+    try:
+        # 获取JSON body中的参数
+        body = await request.json()
+        node_id = body.get("node_id")
+        connect_ids = body.get("connect_ids", [])
+        node_type = body.get("node_type", "thought")
+        
+        if not node_id:
+            return JSONResponse(
+                content={"error": "node_id不能为空"},
+                status_code=400
+            )
+        
+        node = db_ops.add_connect(db, node_id, connect_ids, node_type)
+        return {"msg": "连接已建立", "node": node.id}
+    except Exception as e:
+        return JSONResponse(
+            content={"error": f"连接失败: {str(e)}"},
+            status_code=500
+        )
 
 @app.post("/disconnect")
-async def disconnect_nodes(node_id: int, connect_ids: list, node_type: str, db: Session = Depends(get_db)):
+async def disconnect_nodes(
+    request: Request,
+    db: Session = Depends(get_db)
+):
     """
     断开节点间的 connect 关系（双向）。
+    - node_id: 当前节点id
+    - connect_ids: 需断开的节点id列表
+    - node_type: "thought" 或 "solution"
     """
-    node = db_ops.remove_connect(db, node_id, connect_ids, node_type)
-    return {"msg": "连接已断开", "node": node.id}
+    try:
+        # 获取JSON body中的参数
+        body = await request.json()
+        node_id = body.get("node_id")
+        connect_ids = body.get("connect_ids", [])
+        node_type = body.get("node_type", "thought")
+        
+        if not node_id:
+            return JSONResponse(
+                content={"error": "node_id不能为空"},
+                status_code=400
+            )
+        
+        node = db_ops.remove_connect(db, node_id, connect_ids, node_type)
+        return {"msg": "连接已断开", "node": node.id}
+    except Exception as e:
+        return JSONResponse(
+            content={"error": f"断开连接失败: {str(e)}"},
+            status_code=500
+        )
 
 # ===================== 自动消除开关 =====================
 @app.post("/auto_eliminate")
@@ -194,15 +426,30 @@ async def delete_thought(
     删除思绪节点（thought），支持递归消除。
     - id/content: 指定节点
     """
+    print(f"[DELETE] 收到请求: {data}")
     node = None
+    
+    # 优先通过id查找
     if "id" in data:
         node = db.query(Thought).filter(Thought.id == data["id"]).first()
-    elif "content" in data:
+        print(f"[DELETE] 通过id {data['id']} 查找Thought: {'找到' if node else '未找到'}")
+    
+    # 如果通过id没找到，尝试通过content查找
+    if not node and "content" in data:
         node = db.query(Thought).filter(Thought.content == data["content"]).first()
+        print(f"[DELETE] 通过content '{data['content']}' 查找Thought: {'找到' if node else '未找到'}")
+    
     if not node:
+        # 打印所有Thought节点信息
+        all_thoughts = db.query(Thought).all()
+        print(f"[DELETE] 节点未找到，当前所有Thought: {[(t.id, t.content[:20]) for t in all_thoughts]}")
         return {"code": 1, "msg": "节点不存在", "data": {}}
+    
+    print(f"[DELETE] 找到节点: id={node.id}, content='{node.content}'")
+    
     if node.children.count() > 0:
         return {"code": 2, "msg": "该节点有子节点，不能直接删除", "data": {}}
+    
     deleted = []
     def _eliminate(n):
         parent_id = n.parent
@@ -227,13 +474,27 @@ async def archive_solution(
     归档 solution 节点，断开与 parent thought 的关系，并可递归消除。
     - id/content: 指定 solution 节点
     """
+    print(f"[ARCHIVE] 收到请求: {data}")
     node = None
+    
+    # 优先通过id查找
     if "id" in data:
         node = db.query(Solution).filter(Solution.id == data["id"]).first()
-    elif "content" in data:
+        print(f"[ARCHIVE] 通过id {data['id']} 查找Solution: {'找到' if node else '未找到'}")
+    
+    # 如果通过id没找到，尝试通过content查找
+    if not node and "content" in data:
         node = db.query(Solution).filter(Solution.content == data["content"]).first()
+        print(f"[ARCHIVE] 通过content '{data['content']}' 查找Solution: {'找到' if node else '未找到'}")
+    
     if not node:
+        # 打印所有Solution节点信息
+        all_solutions = db.query(Solution).all()
+        print(f"[ARCHIVE] 节点未找到，当前所有Solution: {[(s.id, s.content[:20]) for s in all_solutions]}")
         return {"code": 1, "msg": "节点不存在", "data": {}}
+    
+    print(f"[ARCHIVE] 找到节点: id={node.id}, content='{node.content}'")
+    
     parent_id = node.parent
     node.parent = None
     db.commit()
@@ -254,16 +515,156 @@ async def archive_solution(
                 _eliminate(parent)
     return {"code": 0, "msg": "solution节点已归档", "data": {"id": node.id, "deleted": deleted}}
 
-@app.post("/agent/guide")
-async def guide_api(topic_name: str, user_id: str, user_history: list, db: Session = Depends(get_db)):
-    reply = agent_guide_chat(user_id, topic_name, db, user_history)
-    return {"reply": reply}
 
-@app.post("/agent/solve")
-async def solve_api(topic_name: str, user_id: str, user_history: list, db: Session = Depends(get_db)):
-    reply = agent_solve_chat(user_id, topic_name, db, user_history)
-    return {"reply": reply}
+# 全局变量管理 agent session
+current_model_api = "kimi"  # 当前选择的模型API
+global_agent = None  # 全局 agent 实例
+conversation_history = []  # 存储对话历史
 
-# if __name__ == "__main__":
-#     import uvicorn
-#     uvicorn.run(app, host="0.0.0.0", port=9999)
+@app.post("/agent/advice")
+async def advice_endpoint(
+    request: Request
+):
+    """
+    获取AI建议的接口，基于数据库中的最后叶子节点
+    
+    Args:
+        topic_name: 主题名称（可选，通过JSON body传递）
+    """
+    try:
+        # 获取请求体中的topic_name
+        body = await request.json()
+        topic_name = body.get("topic_name") if body else None
+        
+        # 获取全局 agent 实例
+        agent = get_or_create_agent()
+        
+        # 获取数据库会话
+        db = next(get_db())
+        
+        # 获取建议
+        advice_text = agent.advice(topic_name=topic_name, db=db)
+        
+        # 确保返回正确的格式
+        return {"reply": advice_text}
+    except Exception as e:
+        return JSONResponse(
+            content={"error": f"获取建议失败: {str(e)}"},
+            status_code=500
+        )
+
+@app.post("/agent/chat")
+async def chat_endpoint(
+    request: Request
+):
+    """
+    与AI进行对话的接口
+    
+    Args:
+        input_text: 用户输入的文本（通过JSON body传递）
+    """
+    try:
+        global conversation_history
+        
+        # 获取请求体中的input_text
+        body = await request.json()
+        input_text = body.get("input_text") if body else ""
+        
+        if not input_text:
+            return JSONResponse(
+                content={"error": "input_text不能为空"},
+                status_code=400
+            )
+        
+        # 获取全局 agent 实例
+        agent = get_or_create_agent()
+        
+        # 进行对话
+        reply = agent.chat(input_text)
+        
+        # 更新对话历史
+        conversation_history.append({"user": input_text, "assistant": reply})
+        
+        return {"reply": reply}
+    except Exception as e:
+        return JSONResponse(
+            content={"error": f"对话失败: {str(e)}"},
+            status_code=500
+        )
+
+@app.post("/agent/set_model")
+async def set_model_api(
+    model_api: str = Body(...)
+):
+    """
+    设置当前使用的模型API
+    
+    Args:
+        model_api: 模型API名称 ("minimax" 或 "kimi")
+    """
+    global current_model_api, global_agent
+    
+    if model_api not in ["minimax", "kimi"]:
+        return JSONResponse(
+            content={"error": "不支持的模型API"},
+            status_code=400
+        )
+    
+    current_model_api = model_api
+    
+    # 强制重新创建 agent 实例，因为模型改变了
+    global_agent = None
+    
+    return {"message": f"模型API已切换到: {model_api}"}
+
+@app.get("/agent/current_model")
+async def get_current_model():
+    """
+    获取当前使用的模型API
+    """
+    global current_model_api
+    return {"model_api": current_model_api}
+
+@app.post("/agent/reset_session")
+async def reset_session():
+    """
+    重置对话会话
+    """
+    global conversation_history, global_agent
+    
+    # 清空对话历史
+    conversation_history.clear()
+    
+    # 重置全局 agent 的对话历史
+    if global_agent:
+        global_agent.reset_conversation()
+    
+    return {"message": "对话会话已重置"}
+
+@app.get("/agent/session_info")
+async def get_session_info():
+    """
+    获取会话信息
+    """
+    global conversation_history, current_model_api, global_agent
+    
+    history_count = len(conversation_history)
+    agent_exists = global_agent is not None
+    
+    return {
+        "agent_exists": agent_exists,
+        "history_count": history_count,
+        "current_model_api": current_model_api
+    }
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允许所有来源
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=9999)

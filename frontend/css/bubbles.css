@@ -1,0 +1,181 @@
+/* bubbles.css - 气泡样式 */
+
+.bubble {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: all;
+    
+    /* 主体渐变背景 */
+    background: linear-gradient(180deg, 
+        rgba(220, 201, 255, 0.65) 5%, 
+        rgba(196, 195, 255, 0.65) 50%, 
+        rgba(119, 217, 227, 0.65) 95%);
+    
+    /* 外发光效果 */
+    box-shadow: 
+        0 0 4px rgba(255, 255, 255, 0.8),
+        0 0 12px rgba(255, 255, 255, 0.6),
+        0 0 20px rgba(119, 217, 227, 0.8),
+        0 0 30px rgba(119, 217, 227, 0.6),
+        inset 0 0 10px rgba(255, 255, 255, 0.4);
+
+    /* 文本样式 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    text-shadow: 0 0 5px rgba(0, 0, 0, 0.4);
+    text-align: center;
+    padding: 8px;
+    
+    /* 过渡动画 */
+    transition: all 0.3s ease;
+    user-select: none;
+    cursor: move;
+    z-index: 10;
+}
+
+/* 顶部高光效果 */
+.bubble::before {
+    content: '';
+    position: absolute;
+    top: 5%;
+    left: 10%;
+    width: 80%;
+    height: 30%;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.6) 0%, transparent 70%);
+    filter: blur(8px);
+    transform: rotate(-10deg);
+    pointer-events: none;
+}
+
+/* 拖拽状态 */
+.bubble.dragging {
+    transform: scale(1.05);
+    box-shadow: 
+        0 0 8px rgba(255, 255, 255, 0.8),
+        0 0 20px rgba(255, 255, 255, 0.6),
+        0 0 30px rgba(119, 217, 227, 0.8),
+        0 0 40px rgba(119, 217, 227, 0.6),
+        inset 0 0 15px rgba(255, 255, 255, 0.5);
+    z-index: 1000;
+}
+
+/* 戳破动画 */
+.bubble.popping {
+    animation: pop 0.25s ease-out forwards;
+}
+
+@keyframes pop {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    25% {
+        transform: scale(1.15);
+        opacity: 0.8;
+    }
+    50% {
+        transform: scale(0.7);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(0);
+        opacity: 0;
+    }
+}
+
+/* 悬停效果 */
+.bubble:hover:not(.popping) {
+    transform: scale(1.02);
+    box-shadow: 
+        0 0 6px rgba(255, 255, 255, 0.8),
+        0 0 16px rgba(255, 255, 255, 0.6),
+        0 0 25px rgba(119, 217, 227, 0.8),
+        0 0 35px rgba(119, 217, 227, 0.6),
+        inset 0 0 12px rgba(255, 255, 255, 0.5);
+}
+
+.bubble.selected {
+    box-shadow: 
+        0 0 0 3px rgba(74, 144, 226, 0.5),
+        0 0 6px rgba(255, 255, 255, 0.8),
+        0 0 16px rgba(255, 255, 255, 0.6),
+        0 0 25px rgba(119, 217, 227, 0.8),
+        0 0 35px rgba(119, 217, 227, 0.6),
+        inset 0 0 12px rgba(255, 255, 255, 0.5);
+}
+
+.bubble-text {
+    font-size: 14px;
+    color: white;
+    text-align: center;
+    max-width: 90%;
+    max-height: 90%;
+    overflow: hidden;
+    pointer-events: none;
+    text-shadow: 0 0 5px rgba(0, 0, 0, 0.4);
+    font-weight: bold;
+}
+
+/* 颜色变体 */
+.bubble-blue {
+    background: linear-gradient(180deg, 
+        rgba(74, 144, 226, 0.65) 5%, 
+        rgba(100, 181, 246, 0.65) 50%, 
+        rgba(33, 150, 243, 0.65) 95%);
+}
+
+.bubble-green {
+    background: linear-gradient(180deg, 
+        rgba(76, 175, 80, 0.65) 5%, 
+        rgba(102, 187, 106, 0.65) 50%, 
+        rgba(46, 125, 50, 0.65) 95%);
+}
+
+.bubble-purple {
+    background: linear-gradient(180deg, 
+        rgba(156, 39, 176, 0.65) 5%, 
+        rgba(186, 104, 200, 0.65) 50%, 
+        rgba(123, 31, 162, 0.65) 95%);
+}
+
+.bubble-orange {
+    background: linear-gradient(180deg, 
+        rgba(255, 152, 0, 0.65) 5%, 
+        rgba(255, 183, 77, 0.65) 50%, 
+        rgba(230, 81, 0, 0.65) 95%);
+}
+
+.bubble-pink {
+    background: linear-gradient(180deg, 
+        rgba(233, 30, 99, 0.65) 5%, 
+        rgba(240, 98, 146, 0.65) 50%, 
+        rgba(194, 24, 91, 0.65) 95%);
+}
+
+#circle-hint {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(74, 144, 226, 0.9);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 16px;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.particle {
+    position: absolute;
+    pointer-events: none;
+    z-index: 4;
+}
