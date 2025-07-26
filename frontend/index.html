@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,12 +15,13 @@
     <link rel="stylesheet" href="css/responsive.css">
     <link rel="stylesheet" href="css/context-menu.css">
 </head>
+
 <body>
     <canvas id="canvas"></canvas>
     <div id="bubble-container"></div>
     <div id="circle-hint">检测到圆圈！</div>
     <div id="status"></div>
-    
+
     <div id="bubble-context-menu" class="bubble-context-menu">
         <div class="context-menu-item conclusion">结论</div>
         <div class="context-menu-item theme">主题</div>
@@ -46,7 +48,7 @@
 
     <!-- AI助手组件 -->
     <div id="ai-assistant">
-        <div id="ai-icon" class="ai-icon">🤖</div>
+        <div id="ai-icon" class="ai-icon"></div>
         <div id="ai-guidance" class="ai-guidance">
             <div class="ai-guidance-content">
                 <div class="ai-guidance-text">欢迎使用BubbleMind！画圆圈创建气泡，右键设置类型。</div>
@@ -67,12 +69,11 @@
     </div>
 
 
-    
+
     <div id="bottom-toolbar">
         <button id="pen-tool" class="tool-button active">✏️</button>
         <button id="eraser-tool" class="tool-button">🧽</button>
         <button id="pin-mode" class="tool-button">📌</button>
-        <button id="move-canvas" class="tool-button">🖱️</button>
         <div class="size-slider-container">
             <input type="range" id="size-slider" min="1" max="20" value="3">
             <span id="size-value">3px</span>
@@ -91,4 +92,5 @@
     <script src="js/events.js"></script>
     <script src="js/app.js"></script>
 </body>
+
 </html>

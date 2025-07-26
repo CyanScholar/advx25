@@ -4,15 +4,15 @@
     position: absolute;
     border-radius: 50%;
     pointer-events: all;
-    
+
     /* 主体渐变背景 */
-    background: linear-gradient(180deg, 
-        rgba(220, 201, 255, 0.65) 5%, 
-        rgba(196, 195, 255, 0.65) 50%, 
-        rgba(119, 217, 227, 0.65) 95%);
-    
+    background: linear-gradient(180deg,
+            rgba(220, 201, 255, 0.65) 5%,
+            rgba(196, 195, 255, 0.65) 50%,
+            rgba(119, 217, 227, 0.65) 95%);
+
     /* 外发光效果 */
-    box-shadow: 
+    box-shadow:
         0 0 4px rgba(255, 255, 255, 0.8),
         0 0 12px rgba(255, 255, 255, 0.6),
         0 0 20px rgba(119, 217, 227, 0.8),
@@ -30,7 +30,7 @@
     text-shadow: 0 0 5px rgba(0, 0, 0, 0.4);
     text-align: center;
     padding: 8px;
-    
+
     /* 过渡动画 */
     transition: all 0.3s ease;
     user-select: none;
@@ -56,7 +56,7 @@
 /* 拖拽状态 */
 .bubble.dragging {
     transform: scale(1.05);
-    box-shadow: 
+    box-shadow:
         0 0 8px rgba(255, 255, 255, 0.8),
         0 0 20px rgba(255, 255, 255, 0.6),
         0 0 30px rgba(119, 217, 227, 0.8),
@@ -75,14 +75,17 @@
         transform: scale(1);
         opacity: 1;
     }
+
     25% {
         transform: scale(1.15);
         opacity: 0.8;
     }
+
     50% {
         transform: scale(0.7);
         opacity: 0.5;
     }
+
     100% {
         transform: scale(0);
         opacity: 0;
@@ -92,7 +95,7 @@
 /* 悬停效果 */
 .bubble:hover:not(.popping) {
     transform: scale(1.02);
-    box-shadow: 
+    box-shadow:
         0 0 6px rgba(255, 255, 255, 0.8),
         0 0 16px rgba(255, 255, 255, 0.6),
         0 0 25px rgba(119, 217, 227, 0.8),
@@ -101,7 +104,7 @@
 }
 
 .bubble.selected {
-    box-shadow: 
+    box-shadow:
         0 0 0 3px rgba(74, 144, 226, 0.5),
         0 0 6px rgba(255, 255, 255, 0.8),
         0 0 16px rgba(255, 255, 255, 0.6),
@@ -124,38 +127,38 @@
 
 /* 颜色变体 */
 .bubble-blue {
-    background: linear-gradient(180deg, 
-        rgba(74, 144, 226, 0.65) 5%, 
-        rgba(100, 181, 246, 0.65) 50%, 
-        rgba(33, 150, 243, 0.65) 95%);
+    background: linear-gradient(180deg,
+            rgba(74, 144, 226, 0.65) 5%,
+            rgba(100, 181, 246, 0.65) 50%,
+            rgba(33, 150, 243, 0.65) 95%);
 }
 
 .bubble-green {
-    background: linear-gradient(180deg, 
-        rgba(76, 175, 80, 0.65) 5%, 
-        rgba(102, 187, 106, 0.65) 50%, 
-        rgba(46, 125, 50, 0.65) 95%);
+    background: linear-gradient(180deg,
+            rgba(76, 175, 80, 0.65) 5%,
+            rgba(102, 187, 106, 0.65) 50%,
+            rgba(46, 125, 50, 0.65) 95%);
 }
 
 .bubble-purple {
-    background: linear-gradient(180deg, 
-        rgba(156, 39, 176, 0.65) 5%, 
-        rgba(186, 104, 200, 0.65) 50%, 
-        rgba(123, 31, 162, 0.65) 95%);
+    background: linear-gradient(180deg,
+            rgba(156, 39, 176, 0.65) 5%,
+            rgba(186, 104, 200, 0.65) 50%,
+            rgba(123, 31, 162, 0.65) 95%);
 }
 
 .bubble-orange {
-    background: linear-gradient(180deg, 
-        rgba(255, 152, 0, 0.65) 5%, 
-        rgba(255, 183, 77, 0.65) 50%, 
-        rgba(230, 81, 0, 0.65) 95%);
+    background: linear-gradient(180deg,
+            rgba(255, 152, 0, 0.65) 5%,
+            rgba(255, 183, 77, 0.65) 50%,
+            rgba(230, 81, 0, 0.65) 95%);
 }
 
 .bubble-pink {
-    background: linear-gradient(180deg, 
-        rgba(233, 30, 99, 0.65) 5%, 
-        rgba(240, 98, 146, 0.65) 50%, 
-        rgba(194, 24, 91, 0.65) 95%);
+    background: linear-gradient(180deg,
+            rgba(233, 30, 99, 0.65) 5%,
+            rgba(240, 98, 146, 0.65) 50%,
+            rgba(194, 24, 91, 0.65) 95%);
 }
 
 #circle-hint {
