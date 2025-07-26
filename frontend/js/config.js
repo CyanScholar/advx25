@@ -4,12 +4,12 @@
  */
 
 // 后端服务配置
-const BACKEND_URL = 'http://175.178.123.55:9999';
+const BACKEND_URL = 'http://175.178.123.55:9999'; // 修改为本地地址
 const BACKEND_TIMEOUT = 5000; // 毫秒
 
 // 画布配置
 const DEFAULT_LINE_WIDTH = 3;
-const DEFAULT_LINE_COLOR = '#000000';
+const DEFAULT_LINE_COLOR = '#FFFFFF';
 const ERASER_WIDTH = 20;
 
 // 气泡配置

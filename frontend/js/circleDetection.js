@@ -83,21 +83,43 @@ function captureCircleArea(bounds) {
         const tempCanvas = document.createElement('canvas');
         const tempCtx = tempCanvas.getContext('2d');
         
-        // 设置临时画布大小为圆圈区域大小
-        const width = bounds.maxX - bounds.minX;
-        const height = bounds.maxY - bounds.minY;
-        tempCanvas.width = width;
-        tempCanvas.height = height;
+        // 获取设备像素比
+        const dpr = window.devicePixelRatio || 1;
+        
+        // 计算实际的像素坐标（考虑设备像素比和画布偏移）
+        const actualMinX = (bounds.minX + canvasOffsetX) * dpr;
+        const actualMinY = (bounds.minY + canvasOffsetY) * dpr;
+        const actualWidth = (bounds.maxX - bounds.minX) * dpr;
+        const actualHeight = (bounds.maxY - bounds.minY) * dpr;
+        
+        // 设置临时画布大小为圆圈区域大小（使用CSS尺寸）
+        const cssWidth = bounds.maxX - bounds.minX;
+        const cssHeight = bounds.maxY - bounds.minY;
+        tempCanvas.width = cssWidth;
+        tempCanvas.height = cssHeight;
+        
+        console.log('捕获圆圈区域:', {
+            bounds: bounds,
+            dpr: dpr,
+            canvasOffset: { x: canvasOffsetX, y: canvasOffsetY },
+            actualCoords: { x: actualMinX, y: actualMinY, width: actualWidth, height: actualHeight },
+            cssSize: { width: cssWidth, height: cssHeight }
+        });
+        
+        // 先填充黑色背景
+        tempCtx.fillStyle = '#000000';
+        tempCtx.fillRect(0, 0, cssWidth, cssHeight);
         
         // 将主画布的圆圈区域复制到临时画布
         tempCtx.drawImage(
             canvas,
-            bounds.minX, bounds.minY, width, height,
-            0, 0, width, height
+            actualMinX, actualMinY, actualWidth, actualHeight,
+            0, 0, cssWidth, cssHeight
         );
         
         // 将临时画布转换为Blob
         tempCanvas.toBlob(blob => {
+            console.log('圆圈区域捕获完成，Blob大小:', blob.size);
             resolve(blob);
         }, 'image/png');
     });
@@ -148,27 +170,36 @@ function clearCircleAreaByMode(bounds, mode, path) {
  * @param {Array} path - 圆圈路径
  */
 function clearCircleBorder(bounds, path) {
-    // 计算中心点和半径
-    const centerX = (bounds.minX + bounds.maxX) / 2;
-    const centerY = (bounds.minY + bounds.maxY) / 2;
+    // 保存当前绘制模式
+    const originalCompositeOperation = ctx.globalCompositeOperation;
+    
+    // 设置为擦除模式
+    ctx.globalCompositeOperation = 'destination-out';
+    
+    // 计算中心点和半径（考虑画布偏移）
+    const centerX = (bounds.minX + bounds.maxX) / 2 + canvasOffsetX;
+    const centerY = (bounds.minY + bounds.maxY) / 2 + canvasOffsetY;
     const radius = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) / 2;
     
     // 设置橡皮擦宽度（增加宽度以确保完全擦除）
     const eraserWidth = (lineWidth || DEFAULT_LINE_WIDTH) * 5; // 增加擦除宽度
     console.log('设置擦除线宽:', eraserWidth);
     ctx.lineWidth = eraserWidth;
-    ctx.strokeStyle = 'white';
+    ctx.strokeStyle = 'rgba(0,0,0,1)'; // 任何颜色都可以，会被擦除
     
-    // 如果有路径，沿着路径擦除
+    // 如果有路径，沿着路径擦除（考虑画布偏移）
     if (path && path.length > 0) {
         console.log('使用路径擦除圆圈边框，路径点数:', path.length);
         ctx.beginPath();
         for (let i = 0; i < path.length; i++) {
             const point = path[i];
+            // 考虑画布偏移
+            const adjustedX = point.x + canvasOffsetX;
+            const adjustedY = point.y + canvasOffsetY;
             if (i === 0) {
-                ctx.moveTo(point.x, point.y);
+                ctx.moveTo(adjustedX, adjustedY);
             } else {
-                ctx.lineTo(point.x, point.y);
+                ctx.lineTo(adjustedX, adjustedY);
             }
         }
         ctx.stroke();
@@ -182,6 +213,9 @@ function clearCircleBorder(bounds, path) {
         console.log('圆形擦除完成');
     }
     
+    // 恢复原始绘制模式
+    ctx.globalCompositeOperation = originalCompositeOperation;
+    
     // 恢复绘图设置
     ctx.lineWidth = lineWidth || DEFAULT_LINE_WIDTH;
     ctx.strokeStyle = lineColor || DEFAULT_LINE_COLOR;
@@ -193,34 +227,30 @@ function clearCircleBorder(bounds, path) {
  */
 function clearTextInBounds(bounds) {
     console.log('清除圆圈内容');
+    
+    // 保存当前绘制模式
+    const originalCompositeOperation = ctx.globalCompositeOperation;
+    
+    // 设置为擦除模式
+    ctx.globalCompositeOperation = 'destination-out';
+    
     // 获取边界内的图像数据
     const width = bounds.maxX - bounds.minX;
     const height = bounds.maxY - bounds.minY;
-    const imageData = ctx.getImageData(bounds.minX, bounds.minY, width, height);
-    const data = imageData.data;
     
-    // 计算中心点和半径
-    const centerX = width / 2;
-    const centerY = height / 2;
+    // 计算中心点和半径（考虑画布偏移）
+    const centerX = (bounds.minX + bounds.maxX) / 2 + canvasOffsetX;
+    const centerY = (bounds.minY + bounds.maxY) / 2 + canvasOffsetY;
     const radius = Math.min(width, height) / 2 * 0.95; // 增大半径，确保清除所有内容
     
-    // 遍历像素，清除圆内的非边框像素
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            // 计算到中心的距离
-            const distToCenter = distance(x, y, centerX, centerY);
-            
-            // 如果在圆内，则清除像素
-            if (distToCenter < radius) {
-                const index = (y * width + x) * 4;
-                data[index] = 255;     // R
-                data[index + 1] = 255; // G
-                data[index + 2] = 255; // B
-                data[index + 3] = 255; // A
-            }
-        }
-    }
+    // 使用圆形路径擦除内容
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,1)'; // 任何颜色都可以，会被擦除
+    ctx.fill();
     
-    // 将修改后的图像数据放回画布
-    ctx.putImageData(imageData, bounds.minX, bounds.minY);
+    // 恢复原始绘制模式
+    ctx.globalCompositeOperation = originalCompositeOperation;
+    
+    console.log('圆圈内容擦除完成');
 }

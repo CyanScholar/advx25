@@ -27,7 +27,49 @@
     /* 连线绘制动画 */
     stroke-dasharray: 300;
     stroke-dashoffset: 300;
-    animation: drawLine 1.5s ease-out forwards;
+    animation: drawLine 0.5s ease-out forwards; /* 从1.5s减少到0.5s */
+}
+
+/* pending状态的连线样式 */
+.connection.pending path {
+    stroke: #FFD700; /* 金色，表示处理中 */
+    stroke-width: 4;
+    filter: drop-shadow(0 0 3px rgba(255, 215, 0, 1)) drop-shadow(0 0 6px rgba(255, 215, 0, 0.8)) drop-shadow(0 0 12px rgba(255, 215, 0, 0.6));
+    animation: pendingPulse 1s ease-in-out infinite;
+}
+
+@keyframes pendingPulse {
+    0%, 100% {
+        opacity: 1;
+        stroke-width: 4;
+    }
+    50% {
+        opacity: 0.6;
+        stroke-width: 5;
+    }
+}
+
+/* pending状态的连接点样式 */
+.connection.pending .connection-point {
+    background: radial-gradient(circle,
+            rgba(255, 215, 0, 1) 0%,
+            rgba(255, 165, 0, 0.8) 100%);
+    box-shadow:
+        0 0 6px rgba(255, 215, 0, 1),
+        0 0 12px rgba(255, 165, 0, 0.8),
+        0 0 18px rgba(255, 165, 0, 0.4);
+    animation: pendingConnectionPulse 1s ease-in-out infinite;
+}
+
+@keyframes pendingConnectionPulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.5);
+        opacity: 0.7;
+    }
 }
 
 @keyframes drawLine {

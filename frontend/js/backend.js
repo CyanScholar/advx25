@@ -30,7 +30,8 @@ function checkBackendConnection() {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json'
-        }
+        },
+        mode: 'cors' // 明确指定CORS模式
     });
     
     // 竞争超时和请求
@@ -39,12 +40,13 @@ function checkBackendConnection() {
             if (response.ok) {
                 return response.json();
             }
-            throw new Error('后端服务不可用');
+            throw new Error(`后端服务不可用: ${response.status} ${response.statusText}`);
         })
         .then(data => {
             backendConnected = true;
             updateBackendStatus(true);
             updateStatus('后端连接成功', 'success');
+            console.log('后端连接成功:', data);
         })
         .catch(error => {
             backendConnected = false;
@@ -52,6 +54,55 @@ function checkBackendConnection() {
             updateStatus(`后端连接失败: ${error.message}`, 'error');
             console.error('后端连接错误:', error);
         });
+}
+
+/**
+ * 检查后端连接并清空数据库
+ */
+function checkBackendConnectionAndClear() {
+    console.log('检查后端连接并清空数据库...');
+    
+    // 先检查连接
+    checkBackendConnection();
+    
+    // 延迟清空数据库，确保连接检查完成
+    setTimeout(() => {
+        if (backendConnected) {
+            clearDatabase();
+        } else {
+            console.warn('后端未连接，跳过数据库清空');
+        }
+    }, 1000);
+}
+
+/**
+ * 清空数据库
+ */
+function clearDatabase() {
+    console.log('清空数据库...');
+    updateStatus('正在清空数据库...', 'processing');
+    
+    fetch(`${BACKEND_URL}/clear`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        mode: 'cors'
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        }
+        throw new Error(`清空数据库失败: ${response.status}`);
+    })
+    .then(data => {
+        console.log('数据库清空成功:', data);
+        updateStatus('数据库已清空', 'success');
+    })
+    .catch(error => {
+        console.error('清空数据库错误:', error);
+        updateStatus(`清空数据库失败: ${error.message}`, 'error');
+    });
 }
 
 /**
@@ -88,12 +139,17 @@ function simulateOCR() {
  * @param {string} topicName - 主题名（可选）
  */
 function sendToOCR(imageBlob, bounds, path, type = 'thought', topicName = '') {
+    console.log('开始OCR识别:', { type, topicName, bounds });
+    
     // 更新状态
     updateOCRStatus('processing');
 
     // 检查后端连接
     if (!backendConnected) {
+        console.error('后端未连接，无法进行OCR识别');
         updateOCRStatus('error', '后端未连接，无法识别');
+        // 尝试重新连接
+        checkBackendConnection();
         return;
     }
 
@@ -105,6 +161,13 @@ function sendToOCR(imageBlob, bounds, path, type = 'thought', topicName = '') {
         formData.append('topic_name', topicName);
     }
 
+    console.log('发送OCR请求到:', `${BACKEND_URL}/ocr`);
+    console.log('表单数据:', {
+        type: type,
+        topic_name: topicName,
+        file_size: imageBlob.size
+    });
+
     // 创建超时
     const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('OCR请求超时')), BACKEND_TIMEOUT);
@@ -113,18 +176,24 @@ function sendToOCR(imageBlob, bounds, path, type = 'thought', topicName = '') {
     // 创建请求
     const fetchPromise = fetch(`${BACKEND_URL}/ocr`, {
         method: 'POST',
-        body: formData
+        body: formData,
+        mode: 'cors' // 明确指定CORS模式
     });
 
     // 竞争超时和请求
     Promise.race([fetchPromise, timeoutPromise])
         .then(response => {
+            console.log('OCR响应状态:', response.status, response.statusText);
             if (response.ok) {
                 return response.json();
             }
-            throw new Error('OCR服务错误');
+            // 尝试读取错误信息
+            return response.text().then(text => {
+                throw new Error(`OCR服务错误: ${response.status} ${response.statusText} - ${text}`);
+            });
         })
         .then(data => {
+            console.log('OCR识别结果:', data);
             if (data.text) {
                 // 创建气泡，保存后端id
                 const centerX = (bounds.minX + bounds.maxX) / 2;
@@ -147,7 +216,20 @@ function sendToOCR(imageBlob, bounds, path, type = 'thought', topicName = '') {
             }
         })
         .catch(error => {
-            updateOCRStatus('error', error.message);
-            console.error('OCR错误:', error);
+            console.error('OCR错误详情:', error);
+            
+            // 根据错误类型提供更友好的错误信息
+            let errorMessage = error.message;
+            if (error.message.includes('未检测到文字') || error.message.includes('ImageNoText')) {
+                errorMessage = '图片中未检测到文字，请确保图片包含清晰的文字内容';
+            } else if (error.message.includes('连接') || error.message.includes('网络')) {
+                errorMessage = '网络连接失败，请检查后端服务是否正常运行';
+                backendConnected = false;
+                checkBackendConnection();
+            } else if (error.message.includes('超时')) {
+                errorMessage = 'OCR请求超时，请稍后重试';
+            }
+            
+            updateOCRStatus('error', errorMessage);
         });
 }

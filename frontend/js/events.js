@@ -3,9 +3,6 @@
  * 设置各种事件监听器
  */
 
-// 戳破模式标志
-let isPinMode = false;
-
 /**
  * 设置事件监听器
  */
@@ -18,37 +15,92 @@ function setupEventListeners() {
     //     }
     // });
     
-    // 画布事件
-    canvas.addEventListener('mousedown', startDrawing);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stopDrawing);
-    canvas.addEventListener('mouseout', stopDrawing);
+    // 画布事件（只在非拖拽模式下启用）
+    canvas.addEventListener('mousedown', (e) => {
+        if (currentTool !== 'drag') {
+            startDrawing(e);
+        }
+    });
+    canvas.addEventListener('mousemove', (e) => {
+        if (currentTool !== 'drag') {
+            draw(e);
+        }
+    });
+    canvas.addEventListener('mouseup', (e) => {
+        if (currentTool !== 'drag') {
+            stopDrawing(e);
+        }
+    });
+    canvas.addEventListener('mouseout', (e) => {
+        if (currentTool !== 'drag') {
+            stopDrawing(e);
+        }
+    });
     
-    // 画布移动事件
-    canvas.addEventListener('mousedown', handleCanvasMove);
-    canvas.addEventListener('mousemove', handleCanvasMove);
-    canvas.addEventListener('mouseup', handleCanvasMove);
+    // 画布移动事件（只在拖拽模式下启用）
+    canvas.addEventListener('mousedown', (e) => {
+        if (currentTool === 'drag') {
+            handleCanvasMove(e);
+        }
+    });
+    canvas.addEventListener('mousemove', (e) => {
+        if (currentTool === 'drag') {
+            handleCanvasMove(e);
+        }
+    });
+    canvas.addEventListener('mouseup', (e) => {
+        if (currentTool === 'drag') {
+            handleCanvasMove(e);
+        }
+    });
     
-    // 触摸事件
+    // 触摸事件（只在非拖拽模式下启用）
     canvas.addEventListener('touchstart', (e) => {
         e.preventDefault();
-        startDrawing(e);
+        if (currentTool !== 'drag') {
+            startDrawing(e);
+        }
     });
     canvas.addEventListener('touchmove', (e) => {
         e.preventDefault();
-        draw(e);
+        if (currentTool !== 'drag') {
+            draw(e);
+        }
     });
     canvas.addEventListener('touchend', (e) => {
         e.preventDefault();
-        stopDrawing();
+        if (currentTool !== 'drag') {
+            stopDrawing(e);
+        }
+    });
+    
+    // 画布移动触摸事件（只在拖拽模式下启用）
+    canvas.addEventListener('touchstart', (e) => {
+        if (currentTool === 'drag') {
+            handleCanvasMove(e);
+        }
+    });
+    canvas.addEventListener('touchmove', (e) => {
+        if (currentTool === 'drag') {
+            handleCanvasMove(e);
+        }
+    });
+    canvas.addEventListener('touchend', (e) => {
+        if (currentTool === 'drag') {
+            handleCanvasMove(e);
+        }
     });
     
     // 工具切换
     const penToolButton = document.getElementById('pen-tool');
     const eraserToolButton = document.getElementById('eraser-tool');
+    const dragCanvasButton = document.getElementById('drag-canvas');
+    const pinModeButton = document.getElementById('pin-mode');
     
     penToolButton.addEventListener('click', () => setTool('pen'));
     eraserToolButton.addEventListener('click', () => setTool('eraser'));
+    dragCanvasButton.addEventListener('click', () => setTool('drag'));
+    pinModeButton.addEventListener('click', () => setTool('pin'));
     
     // 画笔大小调整
     const sizeSlider = document.getElementById('size-slider');
@@ -57,10 +109,10 @@ function setupEventListeners() {
     });
     
     // 戳破模式按钮
-    const pinModeButton = document.getElementById('pin-mode');
-    pinModeButton.addEventListener('click', togglePinMode);
+    // const pinModeButton = document.getElementById('pin-mode'); // This line is removed as per the new_code
+    // pinModeButton.addEventListener('click', togglePinMode); // This line is removed as per the new_code
     
-    // 初始化画布移动功能
+    // 初始化画布移动功能（只初始化事件处理，不添加重复的点击监听器）
     initCanvasMove();
     
     // 键盘快捷键
@@ -73,17 +125,35 @@ function setupEventListeners() {
         else if (e.key === 'e' || e.key === 'E') {
             setTool('eraser');
         }
+        // D键 - 画布拖拽模式
+        else if (e.key === 'd' || e.key === 'D') {
+            setTool('drag');
+        }
+        // T键 - 戳破模式
+        else if (e.key === 't' || e.key === 'T') {
+            setTool('pin');
+        }
+        // R键 - 重置画布位置
+        else if (e.key === 'r' || e.key === 'R') {
+            resetCanvasPosition();
+        }
         // C键 - 清空画布
         else if (e.key === 'c' || e.key === 'C') {
             clearCanvas();
             updateStatus('画布已清空', 'success');
         }
-
     });
     
     // 窗口大小变化
     window.addEventListener('resize', () => {
         resizeCanvas();
+    });
+    
+    // 设备方向变化（针对平板）
+    window.addEventListener('orientationchange', () => {
+        setTimeout(() => {
+            resizeCanvas();
+        }, 100); // 延迟一点确保方向变化完成
     });
     
     // 侧边栏事件

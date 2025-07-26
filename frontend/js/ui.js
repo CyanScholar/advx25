@@ -3,6 +3,10 @@
  * 处理状态更新、气泡列表和其他UI元素
  */
 
+// 全局变量
+let currentTool = 'pen';
+let isPinMode = false;
+
 /**
  * 更新状态显示
  * @param {string} message - 状态消息
@@ -54,21 +58,62 @@ function updateOCRStatus(status, message) {
 
 /**
  * 切换工具
- * @param {string} tool - 工具（pen, eraser）
+ * @param {string} tool - 工具（pen, eraser, drag）
  */
 function setTool(tool) {
     const penToolButton = document.getElementById('pen-tool');
     const eraserToolButton = document.getElementById('eraser-tool');
+    const dragCanvasButton = document.getElementById('drag-canvas');
+    const pinModeButton = document.getElementById('pin-mode');
+    
+    // 清除所有工具的active状态
+    penToolButton.classList.remove('active');
+    eraserToolButton.classList.remove('active');
+    dragCanvasButton.classList.remove('active');
+    pinModeButton.classList.remove('active');
+    
+    // 重置所有模式
+    isPinMode = false;
     
     currentTool = tool;
     
     if (tool === 'pen') {
         penToolButton.classList.add('active');
-        eraserToolButton.classList.remove('active');
+        // 设置正常绘制模式
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = lineColor;
+        canvas.style.cursor = 'crosshair';
+        // 重置拖拽模式
+        isMovingCanvas = false;
     } else if (tool === 'eraser') {
-        penToolButton.classList.remove('active');
         eraserToolButton.classList.add('active');
+        // 设置擦除模式
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.strokeStyle = 'rgba(0,0,0,1)';
+        canvas.style.cursor = 'crosshair';
+        // 重置拖拽模式
+        isMovingCanvas = false;
+    } else if (tool === 'drag') {
+        dragCanvasButton.classList.add('active');
+        canvas.style.cursor = 'grab';
+        // 启用拖拽模式
+        isMovingCanvas = true;
+    } else if (tool === 'pin') {
+        pinModeButton.classList.add('active');
+        isPinMode = true;
+        canvas.style.cursor = 'crosshair';
+        // 重置拖拽模式
+        isMovingCanvas = false;
     }
+    
+    // 更新状态显示
+    const toolNames = {
+        'pen': '画笔工具',
+        'eraser': '橡皮擦工具', 
+        'drag': '画布拖拽模式',
+        'pin': '戳破模式'
+    };
+    updateStatus(`${toolNames[tool]}已激活`, 'success');
 }
 
 /**
@@ -85,39 +130,13 @@ function setLineWidth(width) {
 }
 
 /**
- * 切换戳破模式
- */
-function togglePinMode() {
-    isPinMode = !isPinMode;
-    const pinModeButton = document.getElementById('pin-mode');
-    
-    if (isPinMode) {
-        pinModeButton.classList.add('active');
-        updateStatus('戳破模式已启用', 'success');
-        
-        // 更新所有气泡的光标样式
-        document.querySelectorAll('.bubble').forEach(bubble => {
-            bubble.style.cursor = 'crosshair';
-        });
-    } else {
-        pinModeButton.classList.remove('active');
-        updateStatus('戳破模式已禁用', 'success');
-        
-        // 恢复所有气泡的光标样式
-        document.querySelectorAll('.bubble').forEach(bubble => {
-            bubble.style.cursor = 'move';
-        });
-    }
-}
-
-/**
  * 显示侧边栏
  */
 function showSidebar() {
     const sidebar = document.getElementById('sidebar');
     sidebar.classList.add('visible');
-    // 获取并显示solutions
-    fetchAndRenderSolutions();
+    // 获取并显示主题和解决方案
+    fetchAndRenderTopics();
     
     // 提供智能引导
     setTimeout(() => provideSmartGuidance('sidebar_opened'), 500);
@@ -518,14 +537,25 @@ function createSolutionItem(solution) {
     
     solutionDiv.innerHTML = `
         <div class="solution-content">
-            <div class="solution-text">${solution.content || '未命名解决方案'}</div>
-        </div>
-        <div class="solution-actions">
-            <button class="solution-archive" onclick="archiveSolution(${solution.id})">归档</button>
+            <input type="checkbox" class="solution-checkbox" id="checkbox-${solution.id}" onchange="toggleSolutionArchive(${solution.id}, this.checked)">
+            <label for="checkbox-${solution.id}" class="solution-text">${solution.content || '未命名解决方案'}</label>
         </div>
     `;
     
     return solutionDiv;
+}
+
+/**
+ * 切换solution的归档状态
+ * @param {number} solutionId - solution的id
+ * @param {boolean} isChecked - 复选框是否被选中
+ */
+function toggleSolutionArchive(solutionId, isChecked) {
+    if (isChecked) {
+        // 复选框被选中，执行归档操作
+        archiveSolution(solutionId);
+    }
+    // 如果取消选中，暂时不执行操作（可以根据需要添加取消归档的功能）
 }
 
 /**
@@ -537,6 +567,12 @@ function archiveSolution(solutionId) {
     const solutionElement = document.querySelector(`[data-solution-id="${solutionId}"]`);
     
     if (solutionElement) {
+        // 禁用复选框，防止重复操作
+        const checkbox = solutionElement.querySelector('.solution-checkbox');
+        if (checkbox) {
+            checkbox.disabled = true;
+        }
+        
         // 添加删除线动画
         solutionElement.style.transition = 'all 0.5s ease';
         solutionElement.style.textDecoration = 'line-through';
@@ -575,12 +611,195 @@ function archiveSolution(solutionId) {
     });
 }
 
-// 修改showSidebar函数，调用新的solutions获取函数
+/**
+ * 获取并渲染主题和解决方案
+ */
+let lastTopicsData = null;
+let lastTopicsFetchTime = 0;
+const TOPICS_CACHE_DURATION = 2000; // 2秒缓存
+
+function fetchAndRenderTopics() {
+    const now = Date.now();
+    
+    // 如果缓存时间未过期，直接使用缓存数据
+    if (lastTopicsData && (now - lastTopicsFetchTime) < TOPICS_CACHE_DURATION) {
+        renderTopicsList(lastTopicsData);
+        return;
+    }
+    
+    fetch(`${BACKEND_URL}/topics`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.code === 0) {
+                // 更新缓存
+                lastTopicsData = data.data;
+                lastTopicsFetchTime = now;
+                renderTopicsList(data.data);
+            } else {
+                console.error('获取主题失败:', data);
+                updateStatus('获取主题失败', 'error');
+            }
+        })
+        .catch(err => {
+            console.error('获取主题错误:', err);
+            updateStatus('获取主题失败: ' + err.message, 'error');
+        });
+}
+
+/**
+ * 渲染主题列表到侧边栏
+ * @param {Array} topics - 主题数组
+ */
+function renderTopicsList(topics) {
+    const themeListContainer = document.getElementById('theme-list');
+    
+    // 清空列表
+    themeListContainer.innerHTML = '';
+    
+    if (!topics || topics.length === 0) {
+        // 显示空状态
+        themeListContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📝</div>
+                <div class="empty-state-text">
+                    还没有主题<br>
+                    画圈识别文字创建主题
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    // 为每个主题创建条目
+    topics.forEach(topic => {
+        const topicItem = createTopicItem(topic);
+        themeListContainer.appendChild(topicItem);
+    });
+}
+
+/**
+ * 创建主题条目
+ * @param {Object} topic - 主题对象
+ * @returns {HTMLElement} 主题条目元素
+ */
+function createTopicItem(topic) {
+    const topicDiv = document.createElement('div');
+    topicDiv.className = 'topic-item';
+    topicDiv.dataset.topicId = topic.id;
+    
+    // 创建主题内容
+    let topicContent = `
+        <div class="topic-content">
+            <div class="topic-header">
+                <span class="topic-icon">📋</span>
+                <span class="topic-text">${topic.name || '未命名主题'}</span>
+            </div>
+        </div>
+    `;
+    
+    // 如果有子结论，添加子结论列表
+    if (topic.solutions && topic.solutions.length > 0) {
+        topicContent += '<div class="topic-children">';
+        topic.solutions.forEach(solution => {
+            topicContent += `
+                <div class="solution-item child-solution" data-solution-id="${solution.id}">
+                    <div class="solution-content">
+                        <input type="checkbox" class="solution-checkbox" id="checkbox-${solution.id}" onchange="toggleSolutionArchive(${solution.id}, this.checked)">
+                        <label for="checkbox-${solution.id}" class="solution-text">${solution.content || '未命名解决方案'}</label>
+                    </div>
+                </div>
+            `;
+        });
+        topicContent += '</div>';
+    }
+    
+    topicDiv.innerHTML = topicContent;
+    
+    return topicDiv;
+}
+
+/**
+ * 切换主题的归档状态
+ * @param {number} topicId - 主题的id
+ * @param {boolean} isChecked - 复选框是否被选中
+ */
+function toggleTopicArchive(topicId, isChecked) {
+    if (isChecked) {
+        // 复选框被选中，执行归档操作
+        archiveTopic(topicId);
+    }
+    // 如果取消选中，暂时不执行操作（可以根据需要添加取消归档的功能）
+}
+
+/**
+ * 归档主题
+ * @param {number} topicId - 主题的id
+ */
+function archiveTopic(topicId) {
+    // 找到对应的主题元素
+    const topicElement = document.querySelector(`[data-topic-id="${topicId}"]`);
+    
+    if (topicElement) {
+        // 禁用复选框，防止重复操作
+        const checkbox = topicElement.querySelector('.solution-checkbox');
+        if (checkbox) {
+            checkbox.disabled = true;
+        }
+        
+        // 添加删除线动画
+        topicElement.style.transition = 'all 0.5s ease';
+        topicElement.style.textDecoration = 'line-through';
+        topicElement.style.opacity = '0.5';
+        
+        // 延迟后移除元素
+        setTimeout(() => {
+            topicElement.style.transform = 'translateX(-100%)';
+            topicElement.style.opacity = '0';
+            
+            // 动画完成后移除元素
+            setTimeout(() => {
+                if (topicElement.parentNode) {
+                    topicElement.parentNode.removeChild(topicElement);
+                }
+            }, 500);
+        }, 300);
+    }
+    
+    // 调用后端接口
+    fetch(`${BACKEND_URL}/archive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: topicId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.code === 0) {
+            updateStatus('主题已归档', 'success');
+        } else {
+            updateStatus('归档失败: ' + data.msg, 'error');
+        }
+    })
+    .catch(err => {
+        updateStatus('归档失败: ' + err.message, 'error');
+    });
+}
+
+/**
+ * 清除主题数据缓存
+ */
+function clearTopicsCache() {
+    lastTopicsData = null;
+    lastTopicsFetchTime = 0;
+}
+
+/**
+ * 修改showSidebar函数，调用新的主题获取函数
+ */
 function showSidebar() {
     const sidebar = document.getElementById('sidebar');
     sidebar.classList.add('visible');
-    // 获取并显示solutions
-    fetchAndRenderSolutions();
+    // 获取并显示主题和解决方案
+    fetchAndRenderTopics();
     
     // 提供智能引导
     setTimeout(() => provideSmartGuidance('sidebar_opened'), 500);
@@ -636,4 +855,59 @@ function sendMessage() {
     .catch(err => {
         addMessageToChat('ai', 'AI请求失败: ' + err.message);
     });
+}
+
+/**
+ * 立即将结论气泡添加到侧边栏显示
+ * @param {Object} bubble - 气泡对象
+ */
+function addSolutionToSidebar(bubble) {
+    // 清除缓存，确保下次获取最新数据
+    clearTopicsCache();
+    
+    const themeListContainer = document.getElementById('theme-list');
+    if (!themeListContainer) return;
+    
+    // 查找"未分类"主题，如果不存在则创建
+    let unclassifiedTopic = themeListContainer.querySelector('[data-topic-id="-1"]');
+    
+    if (!unclassifiedTopic) {
+        // 创建"未分类"主题
+        const topicData = {
+            id: -1,
+            name: "未分类",
+            type: "topic",
+            solutions: []
+        };
+        unclassifiedTopic = createTopicItem(topicData);
+        themeListContainer.appendChild(unclassifiedTopic);
+    }
+    
+    // 查找或创建topic-children容器
+    let topicChildren = unclassifiedTopic.querySelector('.topic-children');
+    if (!topicChildren) {
+        topicChildren = document.createElement('div');
+        topicChildren.className = 'topic-children';
+        unclassifiedTopic.querySelector('.topic-content').appendChild(topicChildren);
+    }
+    
+    // 创建结论项目
+    const solutionData = {
+        id: bubble.backendId || bubble.id,
+        content: bubble.text,
+        type: "solution"
+    };
+    
+    const solutionItem = createSolutionItem(solutionData);
+    solutionItem.className = 'solution-item child-solution';
+    topicChildren.appendChild(solutionItem);
+    
+    // 添加动画效果
+    solutionItem.style.opacity = '0';
+    solutionItem.style.transform = 'translateX(-20px)';
+    setTimeout(() => {
+        solutionItem.style.transition = 'all 0.3s ease';
+        solutionItem.style.opacity = '1';
+        solutionItem.style.transform = 'translateX(0)';
+    }, 10);
 }

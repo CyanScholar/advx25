@@ -9,12 +9,17 @@
 
 body {
     overflow: hidden;
-    background-image: url('~/advx/BG.jpg');
+    background-image: url('../BG.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+    background-attachment: fixed;
     background-color: #f5f5f5;
     touch-action: none;
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
 }
 
 canvas {
@@ -22,21 +27,25 @@ canvas {
     position: absolute;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
+    width: 100vw;
+    height: 100vh;
     z-index: 1;
-    /* 移除canvas的背景图片，改为半透明 */
-    background-color: rgba(255, 255, 255, 0.1);
+    /* 移除半透明背景，让背景图片完全显示 */
+    background-color: transparent;
+    /* 优化性能 */
+    will-change: transform;
 }
 
 #bubble-container {
     position: absolute;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
+    width: 100vw;
+    height: 100vh;
     z-index: 2;
     pointer-events: none;
+    /* 优化性能 */
+    will-change: transform;
 }
 
 #status {

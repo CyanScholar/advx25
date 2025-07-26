@@ -203,6 +203,42 @@ async def get_solutions(db: Session = Depends(get_db)):
         for solution in solutions
     ]
 
+@app.get("/topics")
+async def get_topics(db: Session = Depends(get_db)):
+    """获取所有主题及其关联的解决方案"""
+    try:
+        # 获取所有主题
+        topics = db.query(Topic).all()
+        
+        # 为每个主题获取关联的解决方案
+        topics_with_solutions = []
+        for topic in topics:
+            # 获取该主题下的所有解决方案
+            solutions = db.query(Solution).filter(Solution.topic_name == topic.name).all()
+            
+            topic_data = {
+                "id": topic.id,
+                "name": topic.name,
+                "solutions": [
+                    {
+                        "id": solution.id,
+                        "content": solution.content,
+                        "parent": solution.parent,
+                        "topic_name": solution.topic_name,
+                        "create_time": solution.create_time.isoformat() if solution.create_time else None
+                    }
+                    for solution in solutions
+                ]
+            }
+            topics_with_solutions.append(topic_data)
+        
+        return {"code": 0, "msg": "获取主题成功", "data": topics_with_solutions}
+    except Exception as e:
+        return JSONResponse(
+            content={"code": 1, "error": f"获取主题失败: {str(e)}"},
+            status_code=500
+        )
+
 # ===================== 主题管理 =====================
 def get_or_create_topic(db, topic_name):
     """确保 topic_name 在 topics 表中存在，不存在则自动创建"""
@@ -218,6 +254,10 @@ def get_or_create_topic(db, topic_name):
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    # 创建uploads目录（如果不存在）
+    import os
+    os.makedirs("uploads", exist_ok=True)
+    
     # 保存文件到 uploads 目录
     with open(f"uploads/{file.filename}", "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
@@ -230,13 +270,38 @@ async def ocr_api(
     topic_name: str = Form(None),
     db: Session = Depends(get_db)
 ):
+    print(f"[OCR] 收到OCR请求: type={type}, topic_name={topic_name}, filename={file.filename}")
+    
     if type not in ("thought", "solution"):
+        print(f"[OCR] 无效的type: {type}")
         return JSONResponse(content={"error": "type必须为'thought'或'solution'"}, status_code=400)
-    if topic_name:
-        get_or_create_topic(db, topic_name)
-    image_bytes = await file.read()
+    
     try:
-        text = tencent_ocr_high_precision(image_bytes)
+        # 确保topic存在
+        if topic_name:
+            get_or_create_topic(db, topic_name)
+            print(f"[OCR] 主题已确保存在: {topic_name}")
+        
+        # 读取图像数据
+        image_bytes = await file.read()
+        print(f"[OCR] 图像大小: {len(image_bytes)} bytes")
+        
+        # 调用OCR识别
+        try:
+            text = tencent_ocr_high_precision(image_bytes)
+            print(f"[OCR] 识别结果: {text}")
+        except Exception as ocr_error:
+            print(f"[OCR] OCR识别失败: {str(ocr_error)}")
+            # 检查是否是"未检测到文本"的错误
+            if "ImageNoText" in str(ocr_error) or "未检测到文本" in str(ocr_error):
+                return JSONResponse(content={"error": "图片中未检测到文字，请确保图片包含清晰的文字内容"}, status_code=400)
+            else:
+                return JSONResponse(content={"error": f"OCR识别失败: {str(ocr_error)}"}, status_code=500)
+        
+        if not text or text.strip() == "":
+            return JSONResponse(content={"error": "未识别到文字内容"}, status_code=400)
+        
+        # 创建数据库对象
         if type == "thought":
             obj = Thought(
                 content=text,
@@ -251,13 +316,24 @@ async def ocr_api(
                 topic_name=topic_name,
                 create_time=datetime.datetime.utcnow()
             )
+        
         db.add(obj)
         db.commit()
         db.refresh(obj)
-        return JSONResponse(content={"text": text, "id": obj.id, "topic_name": obj.topic_name})
+        
+        print(f"[OCR] 成功创建{type}: id={obj.id}, content={text[:20]}...")
+        
+        return JSONResponse(content={
+            "text": text, 
+            "id": obj.id, 
+            "topic_name": obj.topic_name
+        })
+        
     except Exception as e:
-        import traceback; traceback.print_exc()
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+        import traceback
+        print(f"[OCR] 错误: {str(e)}")
+        traceback.print_exc()
+        return JSONResponse(content={"error": f"OCR处理失败: {str(e)}"}, status_code=500)
 
 # ===================== 节点创建 =====================
 @app.post("/post")

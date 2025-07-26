@@ -13,8 +13,8 @@ def tencent_ocr_high_precision(image_bytes):
     cred = credential.Credential(TENCENT_SECRET_ID, TENCENT_SECRET_KEY)
     client = ocr_client.OcrClient(cred, "ap-beijing")  # 区域可选
     # 是否启用高精度
-    req = models.GeneralAccurateOCRRequest()
-    # req = models.GeneralBasicOCRRequest ()
+    # req = models.GeneralAccurateOCRRequest()
+    req = models.GeneralBasicOCRRequest ()
     
     req.ImageBase64 = base64.b64encode(image_bytes).decode()
     # req.Language = "zh"

@@ -181,8 +181,7 @@
     bottom: 60px;
     right: 0;
     width: 280px;
-    height: auto;
-    max-height: 900px;
+    height: calc(100vh - 120px); /* 和页面一样高，减去底部空间 */
     background: transparent;
     display: flex;
     flex-direction: column;
@@ -205,7 +204,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    max-height: 300px;
+    max-height: calc(100vh - 200px); /* 减去输入框和底部空间 */
     margin-bottom: 10px;
 }
 
@@ -254,8 +253,8 @@
 .ai-chat-input {
     position: absolute;
     bottom: -60px;
-    right: 40px;
-    width: 200px;
+    right: 100px; /* 从40px改为20px，往左挪一点 */
+    width: 180px; /* 从200px改为180px，稍微窄一点 */
     padding: 0;
     background: transparent;
     border: none;
@@ -275,7 +274,7 @@
     outline: none;
     background: rgba(255, 255, 255, 0.9);
     transition: all 0.3s ease;
-    width: 180px;
+    width: 160px; /* 从180px改为160px，稍微窄一点 */
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 

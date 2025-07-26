@@ -45,8 +45,18 @@ function isConnectionLine(path) {
     // 如果起点和终点都有气泡，且不是同一个气泡，则认为是连线
     if (startBubble && endBubble && startBubble.id !== endBubble.id) {
         console.log('检测到连线！创建连接');
-        // 创建连接
+        
+        // 验证连线方向（从父气泡到子气泡）
+        const isValidDirection = validateConnectionDirection(startBubble, endBubble);
+        if (isValidDirection) {
+            // 创建连接（startBubble作为父，endBubble作为子）
         createConnection(startBubble, endBubble);
+        } else {
+            // 方向错误，提示用户
+            updateStatus('连线方向错误！请从父气泡连向子气泡', 'error');
+            showConnectionDirectionHint();
+            console.log('连线方向错误，startBubble:', startBubble.text, 'endBubble:', endBubble.text);
+        }
         return true;
     }
     
@@ -55,9 +65,72 @@ function isConnectionLine(path) {
 }
 
 /**
+ * 显示连线方向提示
+ */
+function showConnectionDirectionHint() {
+    const hintText = '连线方向说明：\n' +
+        '• 从父气泡连向子气泡\n' +
+        '• 思绪(thought)可以作为父节点\n' +
+        '• 结论(solution)之间可以建立关联\n' +
+        '• 结论不能作为思绪的父节点';
+    
+    updateStatus(hintText, 'info');
+    
+    // 3秒后自动清除提示
+    setTimeout(() => {
+        updateStatus('', 'info');
+    }, 3000);
+}
+
+/**
+ * 验证连线方向是否正确
+ * @param {Object} startBubble - 起始气泡（应该是父气泡）
+ * @param {Object} endBubble - 结束气泡（应该是子气泡）
+ * @returns {boolean} 方向是否正确
+ */
+function validateConnectionDirection(startBubble, endBubble) {
+    // 基本验证：确保两个气泡都有后端id
+    if (!startBubble.backendId || !endBubble.backendId) {
+        return false;
+    }
+    
+    // 验证逻辑：
+    // 1. 如果startBubble是thought，endBubble是solution，这是有效的父子关系
+    // 2. 如果startBubble是thought，endBubble是thought，这是有效的父子关系
+    // 3. 如果startBubble是solution，endBubble是solution，这是有效的关联关系
+    // 4. 如果startBubble是solution，endBubble是thought，这是无效的（solution不能是thought的父）
+    
+    const startType = startBubble.type || 'thought';
+    const endType = endBubble.type || 'thought';
+    
+    console.log('验证连线方向:', {
+        startBubble: { text: startBubble.text, type: startType },
+        endBubble: { text: endBubble.text, type: endType }
+    });
+    
+    // 有效的连线方向：
+    // - thought -> thought (父子关系)
+    // - thought -> solution (父子关系)
+    // - solution -> solution (关联关系)
+    
+    if (startType === 'thought') {
+        // thought可以作为父节点
+        return true;
+    } else if (startType === 'solution' && endType === 'solution') {
+        // solution之间可以建立关联关系
+        return true;
+    } else if (startType === 'solution' && endType === 'thought') {
+        // solution不能作为thought的父节点
+        return false;
+    }
+    
+    return true;
+}
+
+/**
  * 创建气泡之间的连接
- * @param {Object} startBubble - 起始气泡
- * @param {Object} endBubble - 结束气泡
+ * @param {Object} startBubble - 起始气泡（父气泡）
+ * @param {Object} endBubble - 结束气泡（子气泡）
  * @returns {Object|null} 连接对象或null
  */
 function createConnection(startBubble, endBubble) {
@@ -70,39 +143,69 @@ function createConnection(startBubble, endBubble) {
         updateStatus('连接已存在！', 'error');
         return null;
     }
+    
     // 检查后端id和类型
     if (!startBubble.backendId || !endBubble.backendId) {
         updateStatus('请先识别并保存气泡', 'error');
         return null;
     }
-    // 请求后端建立连接
+    
+    // 立即创建连接对象并渲染，提供即时反馈
+    const connection = {
+        id: generateId(),
+        startBubble: startBubble,
+        endBubble: endBubble,
+        pending: true // 标记为待确认状态
+    };
+    connections.push(connection);
+    renderConnection(connection);
+    updateStatus('正在建立连接...', 'processing');
+    
+    console.log('建立父子关系:', {
+        parent: { text: startBubble.text, type: startBubble.type, id: startBubble.backendId },
+        child: { text: endBubble.text, type: endBubble.type, id: endBubble.backendId }
+    });
+    
+    // 请求后端建立连接和父子关系
     fetch(`${BACKEND_URL}/connect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             node_id: startBubble.backendId,
             connect_ids: [endBubble.backendId],
-            node_type: startBubble.type || 'thought'
+            node_type: startBubble.type || 'thought',
+            // 添加父子关系信息
+            parent_id: startBubble.backendId,
+            child_id: endBubble.backendId,
+            establish_parent_child: true
         })
     })
     .then(res => res.json())
     .then(data => {
-        // 后端成功后再渲染连线
-        const connection = {
-            id: generateId(),
-            startBubble: startBubble,
-            endBubble: endBubble
-        };
-        connections.push(connection);
-        renderConnection(connection);
-        updateStatus('连接已创建！', 'success');
+        // 后端成功，移除pending状态
+        connection.pending = false;
+    updateStatus('连接已创建！', 'success');
+    
+        // 更新连线样式，移除pending状态
+        const connectionElement = document.getElementById(connection.id);
+        if (connectionElement) {
+            connectionElement.classList.remove('pending');
+    }
+    
         // 删除侧边栏更新，因为现在只显示solutions
-        setTimeout(() => provideSmartGuidance('connection_created'), 1000);
+    setTimeout(() => provideSmartGuidance('connection_created'), 1000);
     })
     .catch(err => {
+        // 后端失败，移除连线
+        connections = connections.filter(conn => conn.id !== connection.id);
+        const connectionElement = document.getElementById(connection.id);
+        if (connectionElement) {
+            connectionElement.parentNode.removeChild(connectionElement);
+        }
         updateStatus('连接失败: ' + err.message, 'error');
     });
-    return null;
+    
+    return connection;
 }
 
 /**
@@ -116,6 +219,11 @@ function renderConnection(connection) {
     const connectionElement = document.createElement('div');
     connectionElement.id = connection.id;
     connectionElement.className = 'connection';
+    
+    // 如果是pending状态，添加特殊样式
+    if (connection.pending) {
+        connectionElement.classList.add('pending');
+    }
     
     // 创建SVG元素
     const svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -287,23 +395,35 @@ function clearAllConnections() {
  * @param {Array} path - 要清除的路径
  */
 function clearConnectionLine(path) {
+    // 保存当前绘制模式
+    const originalCompositeOperation = ctx.globalCompositeOperation;
+    
+    // 设置为擦除模式
+    ctx.globalCompositeOperation = 'destination-out';
+    
     // 清除画布上的手写连线
     const pathBounds = getCircleBounds(path);
     const lineWidth = 10; // 稍微宽一点，确保完全清除
     
     ctx.lineWidth = lineWidth;
-    ctx.strokeStyle = 'white';
+    ctx.strokeStyle = 'rgba(0,0,0,1)'; // 任何颜色都可以，会被擦除
     
     ctx.beginPath();
     for (let i = 0; i < path.length; i++) {
         const point = path[i];
+        // 考虑画布偏移
+        const adjustedX = point.x + canvasOffsetX;
+        const adjustedY = point.y + canvasOffsetY;
         if (i === 0) {
-            ctx.moveTo(point.x, point.y);
+            ctx.moveTo(adjustedX, adjustedY);
         } else {
-            ctx.lineTo(point.x, point.y);
+            ctx.lineTo(adjustedX, adjustedY);
         }
     }
     ctx.stroke();
+    
+    // 恢复原始绘制模式
+    ctx.globalCompositeOperation = originalCompositeOperation;
     
     // 恢复绘图设置
     ctx.lineWidth = DEFAULT_LINE_WIDTH;

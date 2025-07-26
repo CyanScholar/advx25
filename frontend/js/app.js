@@ -16,17 +16,61 @@ function init() {
     console.log('5. agent给出精简的建议和引导');
     console.log('6. agent多轮对话，给出初步的解决方案');
     
+    // 清空前端全局变量
+    clearFrontendData();
+    
     // 初始化画布
     initCanvas();
     
     // 设置事件监听器
     setupEventListeners();
     
-    // 检查后端连接
-    checkBackendConnection();
+    // 检查后端连接并清空数据库
+    checkBackendConnectionAndClear();
     
     // 更新状态
     updateStatus('准备就绪！', 'success');
+}
+
+/**
+ * 清空前端全局变量
+ */
+function clearFrontendData() {
+    // 清空气泡数组
+    if (typeof bubbles !== 'undefined') {
+        bubbles.length = 0;
+    }
+    
+    // 清空连接数组
+    if (typeof connections !== 'undefined') {
+        connections.length = 0;
+    }
+    
+    // 清空当前路径
+    if (typeof currentPath !== 'undefined') {
+        currentPath.length = 0;
+    }
+    
+    // 清空画布
+    const canvas = document.getElementById('canvas');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    // 清空气泡容器
+    const bubbleContainer = document.getElementById('bubble-container');
+    if (bubbleContainer) {
+        bubbleContainer.innerHTML = '';
+    }
+    
+    // 清空连接容器
+    const connectionContainer = document.getElementById('connection-container');
+    if (connectionContainer) {
+        connectionContainer.innerHTML = '';
+    }
+    
+    console.log('前端数据已清空');
 }
 
 // 页面加载完成后初始化应用

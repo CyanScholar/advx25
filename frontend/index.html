@@ -21,7 +21,7 @@
     <div id="bubble-container"></div>
     <div id="circle-hint">检测到圆圈！</div>
     <div id="status"></div>
-
+    
     <div id="bubble-context-menu" class="bubble-context-menu">
         <div class="context-menu-item conclusion">结论</div>
         <div class="context-menu-item theme">主题</div>
@@ -31,7 +31,7 @@
     <!-- 侧边栏 -->
     <div id="sidebar">
         <div class="sidebar-header">
-            <h3>思维结构</h3>
+            <h3>思绪笔记</h3>
             <button id="close-sidebar" class="close-btn">×</button>
         </div>
         <div class="sidebar-content">
@@ -69,11 +69,12 @@
     </div>
 
 
-
+    
     <div id="bottom-toolbar">
-        <button id="pen-tool" class="tool-button active">✏️</button>
-        <button id="eraser-tool" class="tool-button">🧽</button>
-        <button id="pin-mode" class="tool-button">📌</button>
+        <button id="pen-tool" class="tool-button pen-tool active">✏️</button>
+        <button id="eraser-tool" class="tool-button eraser-tool">🧽</button>
+        <button id="pin-mode" class="tool-button pin-tool">📌</button>
+        <button id="drag-canvas" class="tool-button drag-tool">🖱️</button>
         <div class="size-slider-container">
             <input type="range" id="size-slider" min="1" max="20" value="3">
             <span id="size-value">3px</span>

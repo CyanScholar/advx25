@@ -11,8 +11,68 @@ let dragOffsetX = 0, dragOffsetY = 0;
 
 // 长按相关变量
 let longPressTimer = null;
-let longPressDelay = 300; // 减少长按触发时间（毫秒）
 let isLongPress = false;
+let dragStartX = 0, dragStartY = 0; // 添加拖拽开始位置记录
+
+// 触控笔检测和阈值配置
+const FINGER_LONG_PRESS_DELAY = 300; // 手指长按时间（毫秒）
+const STYLUS_LONG_PRESS_DELAY = 150; // 触控笔长按时间（毫秒）
+const FINGER_MOVE_THRESHOLD = 5; // 手指移动阈值（像素）
+const STYLUS_MOVE_THRESHOLD = 15; // 触控笔移动阈值（像素）
+
+/**
+ * 检测是否为触控笔
+ * @param {Event} e - 事件对象
+ * @returns {boolean} 是否为触控笔
+ */
+function isStylus(e) {
+    // 检查pointerType
+    if (e.pointerType === 'pen') {
+        return true;
+    }
+    
+    // 检查pressure值（触控笔通常有更高的pressure）
+    if (e.pressure !== undefined && e.pressure > 0.5) {
+        return true;
+    }
+    
+    // 检查是否有触控笔特有的属性
+    if (e.pressure !== undefined && e.tiltX !== undefined && e.tiltY !== undefined) {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * 获取长按延迟时间
+ * @param {Event} e - 事件对象
+ * @returns {number} 长按延迟时间（毫秒）
+ */
+function getLongPressDelay(e) {
+    return isStylus(e) ? STYLUS_LONG_PRESS_DELAY : FINGER_LONG_PRESS_DELAY;
+}
+
+/**
+ * 获取移动阈值
+ * @param {Event} e - 事件对象
+ * @returns {number} 移动阈值（像素）
+ */
+function getMoveThreshold(e) {
+    return isStylus(e) ? STYLUS_MOVE_THRESHOLD : FINGER_MOVE_THRESHOLD;
+}
+
+/**
+ * 计算两点间距离
+ * @param {number} x1 - 第一个点的x坐标
+ * @param {number} y1 - 第一个点的y坐标
+ * @param {number} x2 - 第二个点的x坐标
+ * @param {number} y2 - 第二个点的y坐标
+ * @returns {number} 两点间距离
+ */
+function getDistance(x1, y1, x2, y2) {
+    return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+}
 
 /**
  * 创建新气泡
@@ -81,6 +141,7 @@ function renderBubble(bubble) {
     // 添加事件监听器
     bubbleElement.addEventListener('mousedown', (e) => handleBubbleMouseDown(e, bubble));
     bubbleElement.addEventListener('touchstart', (e) => handleBubbleMouseDown(e, bubble));
+    bubbleElement.addEventListener('pointerdown', (e) => handleBubbleMouseDown(e, bubble)); // 添加触控笔事件支持
     bubbleElement.addEventListener('touchend', (e) => {
         // 触摸结束时清除长按定时器
         clearTimeout(longPressTimer);
@@ -89,8 +150,20 @@ function renderBubble(bubble) {
             hideContextMenu();
         }
     });
+    bubbleElement.addEventListener('pointerup', (e) => {
+        // 指针抬起时清除长按定时器
+        clearTimeout(longPressTimer);
+        if (!isLongPress) {
+            // 如果不是长按，则隐藏上下文菜单
+            hideContextMenu();
+        }
+    });
     bubbleElement.addEventListener('touchmove', (e) => {
         // 触摸移动时清除长按定时器
+        clearTimeout(longPressTimer);
+    });
+    bubbleElement.addEventListener('pointermove', (e) => {
+        // 指针移动时清除长按定时器
         clearTimeout(longPressTimer);
     });
     
@@ -135,9 +208,35 @@ function handleBubbleMouseDown(e, bubble) {
     isLongPress = false;
     clearTimeout(longPressTimer);
     
+    // 记录拖拽开始位置
+    if (e.touches && e.touches.length > 0) {
+        dragStartX = e.touches[0].clientX;
+        dragStartY = e.touches[0].clientY;
+    } else if (e.pointerType === 'pen') {
+        // 触控笔事件
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+    } else {
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+    }
+    
     // 设置长按定时器
+    const longPressDelay = getLongPressDelay(e);
+    const deviceType = isStylus(e) ? '触控笔' : '手指';
+    console.log(`气泡按下 - 设备类型: ${deviceType}, 长按延迟: ${longPressDelay}ms`);
+    console.log(`事件详情:`, {
+        type: e.type,
+        pointerType: e.pointerType,
+        pressure: e.pressure,
+        isStylus: isStylus(e),
+        clientX: e.clientX,
+        clientY: e.clientY
+    });
+    
     longPressTimer = setTimeout(() => {
         isLongPress = true;
+        console.log(`长按触发 - 设备类型: ${deviceType}`);
         showContextMenu(e, bubble);
     }, longPressDelay);
     
@@ -159,21 +258,32 @@ function prepareBubbleDrag(e, bubble) {
     if (e.touches && e.touches.length > 0) {
         clientX = e.touches[0].clientX;
         clientY = e.touches[0].clientY;
+    } else if (e.pointerType === 'pen') {
+        // 触控笔事件
+        clientX = e.clientX;
+        clientY = e.clientY;
     } else {
         clientX = e.clientX;
         clientY = e.clientY;
     }
     
+    // 记录拖拽开始位置（用于移动阈值检测）
+    dragStartX = clientX;
+    dragStartY = clientY;
+    
+    // 计算鼠标相对于气泡中心的偏移
     dragOffsetX = clientX - rect.left - rect.width / 2;
     dragOffsetY = clientY - rect.top - rect.height / 2;
     
     // 添加鼠标抬起事件监听器
     document.addEventListener('mouseup', handleMouseUp, { once: true });
     document.addEventListener('touchend', handleMouseUp, { once: true });
+    document.addEventListener('pointerup', handleMouseUp, { once: true }); // 添加触控笔支持
     
     // 添加鼠标移动事件监听器（用于检测拖拽开始）
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('touchmove', handleMouseMove);
+    document.addEventListener('pointermove', handleMouseMove); // 添加触控笔支持
 }
 
 /**
@@ -185,6 +295,7 @@ function handleMouseUp() {
     // 移除移动事件监听器
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('touchmove', handleMouseMove);
+    document.removeEventListener('pointermove', handleMouseMove); // 添加触控笔支持
     
     // 如果正在拖拽，停止拖拽
     if (isDragging) {
@@ -201,19 +312,45 @@ function handleMouseMove(e) {
         return;
     }
     
-    // 清除长按定时器
-    clearTimeout(longPressTimer);
+    // 获取当前坐标
+    let currentX, currentY;
+    if (e.touches && e.touches.length > 0) {
+        currentX = e.touches[0].clientX;
+        currentY = e.touches[0].clientY;
+    } else if (e.pointerType === 'pen') {
+        // 触控笔事件
+        currentX = e.clientX;
+        currentY = e.clientY;
+    } else {
+        currentX = e.clientX;
+        currentY = e.clientY;
+    }
     
-    // 开始拖拽
-    if (!isDragging) {
-        isDragging = true;
-        // 移除检测移动的监听器，添加拖拽移动监听器
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('touchmove', handleMouseMove);
-        document.addEventListener('mousemove', moveBubble);
-        document.addEventListener('touchmove', moveBubble);
-        document.addEventListener('mouseup', stopBubbleDrag);
-        document.addEventListener('touchend', stopBubbleDrag);
+    // 计算移动距离
+    const moveDistance = getDistance(dragStartX, dragStartY, currentX, currentY);
+    const moveThreshold = getMoveThreshold(e);
+    
+    // 如果移动距离超过阈值，开始拖拽
+    if (moveDistance > moveThreshold) {
+        // 清除长按定时器
+        clearTimeout(longPressTimer);
+        
+        // 开始拖拽
+        if (!isDragging) {
+            isDragging = true;
+            console.log(`开始拖拽 - 设备类型: ${isStylus(e) ? '触控笔' : '手指'}, 移动距离: ${moveDistance.toFixed(1)}px, 阈值: ${moveThreshold}px`);
+            
+            // 移除检测移动的监听器，添加拖拽移动监听器
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('touchmove', handleMouseMove);
+            document.removeEventListener('pointermove', handleMouseMove); // 添加触控笔支持
+            document.addEventListener('mousemove', moveBubble);
+            document.addEventListener('touchmove', moveBubble);
+            document.addEventListener('pointermove', moveBubble); // 添加触控笔支持
+            document.addEventListener('mouseup', stopBubbleDrag);
+            document.addEventListener('touchend', stopBubbleDrag);
+            document.addEventListener('pointerup', stopBubbleDrag); // 添加触控笔支持
+        }
     }
 }
 
@@ -231,6 +368,10 @@ function moveBubble(e) {
     if (e.touches && e.touches.length > 0) {
         clientX = e.touches[0].clientX;
         clientY = e.touches[0].clientY;
+    } else if (e.pointerType === 'pen') {
+        // 触控笔事件
+        clientX = e.clientX;
+        clientY = e.clientY;
     } else {
         clientX = e.clientX;
         clientY = e.clientY;
@@ -273,8 +414,10 @@ function stopBubbleDrag() {
     // 移除全局事件监听器
     document.removeEventListener('mousemove', moveBubble);
     document.removeEventListener('touchmove', moveBubble);
+    document.removeEventListener('pointermove', moveBubble); // 添加触控笔支持
     document.removeEventListener('mouseup', stopBubbleDrag);
     document.removeEventListener('touchend', stopBubbleDrag);
+    document.removeEventListener('pointerup', stopBubbleDrag); // 添加触控笔支持
     
     // 只有在非长按情况下才隐藏上下文菜单
     if (!isLongPress) {
@@ -304,6 +447,11 @@ function popBubble(bubble) {
         content: bubble.text
     };
     
+    console.log('发送删除请求:', {
+        bubble: { text: bubble.text, type: bubble.type, backendId: bubble.backendId },
+        requestData: requestData
+    });
+    
     if (bubble.type === 'solution') {
         // 归档solution
         updateStatus('正在归档结论...', 'processing');
@@ -316,6 +464,50 @@ function popBubble(bubble) {
         .then(data => {
             if (data.code === 0 || data.msg === "solution节点已归档") {
                 updateStatus('结论已归档！', 'success');
+                
+                // 处理后端返回的删除信息
+                if (data.data && data.data.deleted && data.data.deleted.length > 0) {
+                    console.log('后端删除了以下节点:', data.data.deleted);
+                    
+                    // 删除对应的前端气泡
+                    for (const deletedNode of data.data.deleted) {
+                        // 查找对应的前端气泡
+                        const frontendBubble = bubbles.find(b => 
+                            b.backendId === deletedNode.id || b.text === deletedNode.content
+                        );
+                        
+                        if (frontendBubble) {
+                            console.log('删除前端气泡:', frontendBubble.text);
+                            // 从DOM中移除气泡元素
+                            const bubbleElement = document.getElementById(frontendBubble.id);
+                            if (bubbleElement) {
+                                bubbleElement.classList.add('fade-out-animation');
+                                setTimeout(() => {
+                                    if (bubbleElement.parentNode) {
+                                        bubbleElement.parentNode.removeChild(bubbleElement);
+                                    }
+                                }, 50);
+                            }
+                            
+                            // 从气泡数组中移除
+                            bubbles = bubbles.filter(b => b.id !== frontendBubble.id);
+                            
+                            // 移除与该气泡相关的所有连线
+                            const relatedConnections = connections.filter(
+                                conn => conn.startBubble.id === frontendBubble.id || conn.endBubble.id === frontendBubble.id
+                            );
+                            
+                            for (const conn of relatedConnections) {
+                                removeConnection(conn);
+                            }
+                            
+                            // 如果被选中的气泡被移除，清除选择
+                            if (selectedBubble && selectedBubble.id === frontendBubble.id) {
+                                selectedBubble = null;
+                            }
+                        }
+                    }
+                }
             } else {
                 updateStatus('归档失败: ' + data.msg, 'error');
             }
@@ -335,6 +527,50 @@ function popBubble(bubble) {
         .then(data => {
             if (data.code === 0) {
                 updateStatus('气泡已爆炸！', 'success');
+                
+                // 处理后端返回的删除信息
+                if (data.data && data.data.deleted && data.data.deleted.length > 0) {
+                    console.log('后端删除了以下节点:', data.data.deleted);
+                    
+                    // 删除对应的前端气泡
+                    for (const deletedNode of data.data.deleted) {
+                        // 查找对应的前端气泡
+                        const frontendBubble = bubbles.find(b => 
+                            b.backendId === deletedNode.id || b.text === deletedNode.content
+                        );
+                        
+                        if (frontendBubble) {
+                            console.log('删除前端气泡:', frontendBubble.text);
+                            // 从DOM中移除气泡元素
+                            const bubbleElement = document.getElementById(frontendBubble.id);
+                            if (bubbleElement) {
+                                bubbleElement.classList.add('fade-out-animation');
+                                setTimeout(() => {
+                                    if (bubbleElement.parentNode) {
+                                        bubbleElement.parentNode.removeChild(bubbleElement);
+                                    }
+                                }, 50);
+                            }
+                            
+                            // 从气泡数组中移除
+                            bubbles = bubbles.filter(b => b.id !== frontendBubble.id);
+                            
+                            // 移除与该气泡相关的所有连线
+                            const relatedConnections = connections.filter(
+                                conn => conn.startBubble.id === frontendBubble.id || conn.endBubble.id === frontendBubble.id
+                            );
+                            
+                            for (const conn of relatedConnections) {
+                                removeConnection(conn);
+                            }
+                            
+                            // 如果被选中的气泡被移除，清除选择
+                            if (selectedBubble && selectedBubble.id === frontendBubble.id) {
+                                selectedBubble = null;
+                            }
+                        }
+                    }
+                }
             } else {
                 updateStatus('删除失败: ' + data.msg, 'error');
             }
@@ -593,11 +829,27 @@ function setBubbleType(bubble, type) {
         bubbleElement.dataset.type = type;
     }
     
+    // 立即刷新侧边栏（如果是主题或结论）
+    if (type === 'conclusion' || type === 'theme') {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar && sidebar.classList.contains('visible')) {
+            // 立即刷新思绪笔记
+            fetchAndRenderTopics();
+            
+            // 如果是结论，立即添加到本地显示
+            if (type === 'conclusion') {
+                addSolutionToSidebar(bubble);
+            }
+        }
+    }
+    
     // 如果有后端id，同步到后端
     if (bubble.backendId) {
         let backendType = 'thought';
         if (type === 'conclusion') {
             backendType = 'solution';
+        } else if (type === 'theme') {
+            backendType = 'topic';
         }
         
         // 调用后端update接口
@@ -616,19 +868,6 @@ function setBubbleType(bubble, type) {
                 // 更新气泡的后端id
                 bubble.backendId = data.id;
                 console.log('节点类型已更新:', data.msg);
-                
-                // 如果是conclusion，刷新侧边栏
-                if (type === 'conclusion') {
-                    const sidebar = document.getElementById('sidebar');
-                    if (sidebar && sidebar.classList.contains('visible')) {
-                        // 重新获取solutions列表
-                        fetch(`${BACKEND_URL}/solutions`)
-                            .then(res => res.json())
-                            .then(solutions => {
-                                renderSolutionsList(solutions);
-                            });
-                    }
-                }
             }
         })
         .catch(err => {
@@ -652,3 +891,53 @@ function setBubbleType(bubble, type) {
     // 提供智能引导
     setTimeout(() => provideSmartGuidance('bubble_type_set', { type }), 500);
 }
+
+/**
+ * 测试触控笔检测功能
+ * 在控制台输出当前设备的触控笔检测信息
+ */
+function testStylusDetection() {
+    console.log('=== 触控笔检测测试 ===');
+    console.log('设备像素比:', window.devicePixelRatio || 1);
+    console.log('触摸支持:', 'ontouchstart' in window);
+    console.log('Pointer Events支持:', 'onpointerdown' in window);
+    
+    // 测试事件对象
+    const testEvent = {
+        pointerType: 'pen',
+        pressure: 0.8,
+        tiltX: 10,
+        tiltY: 5,
+        touches: null
+    };
+    
+    console.log('测试触控笔事件:', {
+        pointerType: testEvent.pointerType,
+        pressure: testEvent.pressure,
+        tiltX: testEvent.tiltX,
+        tiltY: testEvent.tiltY,
+        isStylus: isStylus(testEvent),
+        longPressDelay: getLongPressDelay(testEvent),
+        moveThreshold: getMoveThreshold(testEvent)
+    });
+    
+    // 测试手指事件
+    const testFingerEvent = {
+        pointerType: 'touch',
+        pressure: 0.3,
+        touches: null
+    };
+    
+    console.log('测试手指事件:', {
+        pointerType: testFingerEvent.pointerType,
+        pressure: testFingerEvent.pressure,
+        isStylus: isStylus(testFingerEvent),
+        longPressDelay: getLongPressDelay(testFingerEvent),
+        moveThreshold: getMoveThreshold(testFingerEvent)
+    });
+}
+
+// 页面加载完成后自动运行测试
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(testStylusDetection, 1000);
+});
